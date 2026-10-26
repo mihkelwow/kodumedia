@@ -32,9 +32,13 @@ describe('player timeline math', () => {
   })
 
   it('keeps Safari on its native HLS path so AirPlay receives a network URL', () => {
-    expect(shouldUseNativeHls(true, true)).toBe(true)
-    expect(shouldUseNativeHls(true, false)).toBe(false)
-    expect(shouldUseNativeHls(false, true)).toBe(false)
+    expect(shouldUseNativeHls(true, true, true)).toBe(true)
+    expect(shouldUseNativeHls(true, false, true)).toBe(false)
+    expect(shouldUseNativeHls(false, true, true)).toBe(false)
+  })
+
+  it('keeps Chromium on hls.js even when it advertises partial native HLS support', () => {
+    expect(shouldUseNativeHls(true, true, false)).toBe(false)
   })
 
   it('caps server-defined startup targets so a paused browser cannot deadlock below them', () => {

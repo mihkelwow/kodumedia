@@ -184,8 +184,18 @@ export function hlsBufferSizeBytes(bitrate: number | undefined, desiredSeconds: 
   return Math.max(minimum, Math.min(maximum, estimated));
 }
 
-export function shouldUseNativeHls(adaptive: boolean, nativeHlsSupported: boolean): boolean {
-  return adaptive && nativeHlsSupported;
+export function shouldUseNativeHls(
+  adaptive: boolean,
+  nativeHlsSupported: boolean,
+  webKitAirPlaySupported: boolean,
+): boolean {
+  // A non-empty canPlayType() answer is not strong enough to select a native
+  // HLS implementation. Chromium builds can advertise partial/native HLS
+  // support while still rejecting the generated event playlist at playback
+  // time with MEDIA_ERR_SRC_NOT_SUPPORTED. Keep the network URL required by
+  // AirPlay only on WebKit clients that expose the native playback-target
+  // picker; every other MSE-capable browser stays on the proven hls.js path.
+  return adaptive && nativeHlsSupported && webKitAirPlaySupported;
 }
 
 
@@ -1087,6 +1097,7 @@ export function PlayerModal({
 
     let cancelled = false;
     let hls: HlsType | undefined;
+    let hlsJsAttached = false;
     let autoPlayStarted = false;
     const startupWaitStartedAt = Date.now();
     let networkRecoveryAttempts = 0;
@@ -1216,6 +1227,11 @@ export function PlayerModal({
     const bufferTimer = window.setInterval(startWhenReady, 500);
     const onNativeError = () => {
       if (cancelled) return;
+      // hls.js owns errors after it attaches MediaSource. Its ERROR event has
+      // the actionable network/media detail and recovery policy; reacting to
+      // the media element's generic error as well can race that handler and
+      // start duplicate fallback sessions.
+      if (hlsJsAttached) return;
       const code = video.error?.code;
       fatalHandler.current(
         code
@@ -1234,11 +1250,23 @@ export function PlayerModal({
     const attach = async () => {
       const nativeHlsSupported =
         video.canPlayType("application/vnd.apple.mpegurl") !== "";
+      const webKitAirPlaySupported =
+        typeof (
+          video as HTMLVideoElement & {
+            webkitShowPlaybackTargetPicker?: () => void;
+          }
+        ).webkitShowPlaybackTargetPicker === "function";
       // Safari must own HLS playback whenever it supports HLS natively. If
       // hls.js attaches first, the media element receives a blob: URL that is
       // valid only inside this tab; an AirPlay television can connect to the
       // route but cannot fetch or play that private browser URL.
-      if (shouldUseNativeHls(adaptive, nativeHlsSupported)) {
+      if (
+        shouldUseNativeHls(
+          adaptive,
+          nativeHlsSupported,
+          webKitAirPlaySupported,
+        )
+      ) {
         video.src = source;
         video.load();
         return;
@@ -1275,6 +1303,7 @@ export function PlayerModal({
                   : -1,
             });
             hls.loadSource(source);
+            hlsJsAttached = true;
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
               if (!cancelled) {

@@ -21,6 +21,12 @@
 - UI foundation'i lähtekoodikontroll ei eelda enam puhtas CI checkout'is veel
   loomata embedded veebibuild'i. Pärast veebibuild'i kopeerimist kontrollitakse
   embedded faile eraldi kohustuslikus etapis.
+- Taastatud Chromiumi/Windowsi varasem `hls.js` esitustee. Castimise jaoks
+  lisatud native HLS valitakse nüüd ainult WebKiti päris AirPlay
+  playback-target toe korral; Chromiumi osaline native HLS reklaam ei saa enam
+  põhjustada `MediaError 4` kordusviga ka universaalse H.264/AAC voo puhul.
+- `hls.js`-i hallatud voo korral ei käivita meediaelemendi üldine veateade enam
+  detailse HLS-veahalduriga võistlevat teist fallback-session'it.
 
 ## 0.8.56 - 2026-10-26
 
