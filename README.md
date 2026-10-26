@@ -14,6 +14,10 @@ series and music on a trusted home network.
 
 The current release is **0.8.56**.
 
+[![KoduMedia home screen showing the featured title and Continue Watching](docs/screenshots/home-overview.png)](docs/screenshots/home-overview.png)
+
+<p align="center"><em>Your movies, series and music in one cinematic home interface.</em></p>
+
 > [!WARNING]
 > KoduMedia does not yet provide user accounts, TLS or secure internet-facing
 > remote access. Keep port `8096` restricted to trusted private networks.
@@ -30,6 +34,23 @@ The current release is **0.8.56**.
 - Watch progress, continue watching and episode-aware post-play suggestions.
 - Estonian and English user-interface translations.
 - Portable Windows releases with FFmpeg and FFprobe included.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%">
+      <a href="docs/screenshots/series-details.png"><img src="docs/screenshots/series-details.png" alt="KoduMedia series details page with seasons and episodes"></a><br>
+      <strong>Series and episodes</strong><br>
+      Browse title information, seasons and available episodes from one screen.
+    </td>
+    <td width="50%">
+      <a href="docs/screenshots/media-details.png"><img src="docs/screenshots/media-details.png" alt="KoduMedia media details page with cast and technical information"></a><br>
+      <strong>Rich media details</strong><br>
+      Review cast, codec, resolution, audio and file information before playback.
+    </td>
+  </tr>
+</table>
 
 ## Requirements
 

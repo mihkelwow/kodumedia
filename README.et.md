@@ -10,6 +10,10 @@ ja esitada.
 
 Praegune versioon on **0.8.56**.
 
+[![KoduMedia avaleht esiletõstetud teose ja poolelijäänud vaatamistega](docs/screenshots/home-overview.png)](docs/screenshots/home-overview.png)
+
+<p align="center"><em>Sinu filmid, seriaalid ja muusika ühes kinolikus avalehe vaates.</em></p>
+
 > [!WARNING]
 > KoduMedial pole veel kasutajakontosid, TLS-i ega turvalist internetipõhist
 > kaugjuurdepääsu. Hoia port `8096` ainult usaldatud privaatvõrgus.
@@ -26,6 +30,23 @@ Praegune versioon on **0.8.56**.
 - Vaatamisjärg, „Jätka vaatamist” ja järgmise osa soovitused.
 - Eesti- ja ingliskeelne kasutajaliides.
 - Portable Windowsi väljalase koos FFmpegi ja FFprobe'iga.
+
+## Kuvatõmmised
+
+<table>
+  <tr>
+    <td width="50%">
+      <a href="docs/screenshots/series-details.png"><img src="docs/screenshots/series-details.png" alt="KoduMedia seriaali detailvaade hooaegade ja osadega"></a><br>
+      <strong>Seriaalid ja osad</strong><br>
+      Vaata teose infot, hooaegu ja serveris olevaid osi ühelt ekraanilt.
+    </td>
+    <td width="50%">
+      <a href="docs/screenshots/media-details.png"><img src="docs/screenshots/media-details.png" alt="KoduMedia meedia detailvaade näitlejate ja tehniliste andmetega"></a><br>
+      <strong>Põhjalik meediainfo</strong><br>
+      Kontrolli enne esitamist näitlejaid, koodekit, resolutsiooni, heli ja failiinfot.
+    </td>
+  </tr>
+</table>
 
 ## Nõuded
 
