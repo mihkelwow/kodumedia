@@ -8,6 +8,8 @@ KÄIVITAMINE
 0.8.57 PLAYERI KÄIVITUMISE HOTFIX
 - Filmid ja seriaalid ei jää enam brauseris lõputult 14–20 sekundi puhvrit ootama.
 - Player alustab töökindla brauseripuhvriga ja jätkab aeglase voo korral ise.
+- Windowsi Chrome ja Edge kasutavad taas töökindlat hls.js esitusteed ega satu
+  castimise native HLS-i kaudu MediaError 4 kordusveasse.
 - Samsungi/DLNA 12–20 sekundi serveripuhver ning AirPlay parandused säilivad.
 
 0.8.56 TÖÖKINDEL AIRPLAY JA PUHVERDATUD SAMSUNG DLNA

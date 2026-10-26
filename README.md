@@ -50,6 +50,18 @@ The current release is **0.8.57**.
       Review cast, codec, resolution, audio and file information before playback.
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+      <a href="docs/screenshots/player-playback.png"><img src="docs/screenshots/player-playback.png" alt="KoduMedia browser player during movie playback"></a><br>
+      <strong>Cinematic browser playback</strong><br>
+      Play movies and episodes with seeking, subtitles, volume, casting and fullscreen controls.
+    </td>
+    <td width="50%">
+      <a href="docs/screenshots/player-diagnostics.png"><img src="docs/screenshots/player-diagnostics.png" alt="KoduMedia player with playback diagnostics expanded"></a><br>
+      <strong>Playback diagnostics</strong><br>
+      Inspect the active profile, codecs, buffer, encoder speed, bitrate and cache state.
+    </td>
+  </tr>
 </table>
 
 ## Requirements
@@ -191,3 +203,11 @@ Third-party components retain their own licenses. See
 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt). The official Windows release
 includes a GPL build of FFmpeg; its license and source-build provenance are
 included in `tools/ffmpeg` and in every release package.
+
+### Development disclosure
+
+KoduMedia is an experimental learning project created through prompt-driven,
+AI-assisted development. The project owner defined the requirements, made the
+product decisions, tested the results and directed each iteration, but did not
+manually write any of the source code. AI assistance does not change the
+project's GPL-3.0-only license or the need to review and test contributions.

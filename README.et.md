@@ -46,6 +46,18 @@ Praegune versioon on **0.8.57**.
       Kontrolli enne esitamist näitlejaid, koodekit, resolutsiooni, heli ja failiinfot.
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+      <a href="docs/screenshots/player-playback.png"><img src="docs/screenshots/player-playback.png" alt="KoduMedia brauseriplayer filmi esitamise ajal"></a><br>
+      <strong>Kinolik brauseriplayer</strong><br>
+      Esita filme ja seriaale koos ajajoone, subtiitrite, heli, castimise ja täisekraani juhtnuppudega.
+    </td>
+    <td width="50%">
+      <a href="docs/screenshots/player-diagnostics.png"><img src="docs/screenshots/player-diagnostics.png" alt="KoduMedia player avatud esituse diagnostikaga"></a><br>
+      <strong>Esituse diagnostika</strong><br>
+      Vaata aktiivset profiili, koodekeid, puhvrit, encoder'i kiirust, bitrate'i ja cache'i olekut.
+    </td>
+  </tr>
 </table>
 
 ## Nõuded
@@ -177,3 +189,11 @@ avalikus issue's võtmeid ega kasutatavat ründekirjeldust.
 KoduMedia on avaldatud
 [GNU General Public License v3.0 only](LICENSE) tingimustel. Kolmandate osapoolte
 litsentsid on failis [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+
+### Arenduse läbipaistvus
+
+KoduMedia on õppimiseks ja katsetamiseks loodud prompt-driven ning AI-assisted
+projekt. Projekti omanik määratles nõuded, tegi tooteotsused, testis tulemusi ja
+juhtis iga iteratsiooni, kuid ei kirjutanud lähtekoodi käsitsi. AI kasutamine ei
+muuda projekti GPL-3.0-only litsentsi ega kaota vajadust muudatusi üle vaadata ja
+testida.

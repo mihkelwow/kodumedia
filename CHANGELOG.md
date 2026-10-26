@@ -27,6 +27,9 @@
   põhjustada `MediaError 4` kordusviga ka universaalse H.264/AAC voo puhul.
 - `hls.js`-i hallatud voo korral ei käivita meediaelemendi üldine veateade enam
   detailse HLS-veahalduriga võistlevat teist fallback-session'it.
+- Windowsi lõplikus testpakis kinnitati filmi esitamise ja playeri diagnostika
+  töö. README sai juurde playeri ning diagnostika kuvatõmmised ja läbipaistva
+  AI-assisted/prompt-driven arenduse märkuse.
 
 ## 0.8.56 - 2026-10-26
 
