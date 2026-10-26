@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '..')
 const read = (path) => readFileSync(resolve(root, path), 'utf8')
 const failures = []
+const requireEmbedded = process.argv.includes('--require-embedded')
 
 function sourceFiles(directory) {
   const files = []
@@ -31,7 +32,9 @@ const staticBackdrop = read('src/shared/components/StaticAppBackdrop.tsx')
 const publicFiles = readdirSync(resolve(root, 'public'))
 const removedRuntimeLayers = ['home-featured', 'initial-setup', 'series-themes']
 const embeddedDist = resolve(root, '../server/internal/webui/dist')
-const embeddedIndex = readFileSync(resolve(embeddedDist, 'index.html'), 'utf8')
+const embeddedIndexPath = resolve(embeddedDist, 'index.html')
+const embeddedAvailable = existsSync(embeddedIndexPath)
+const embeddedIndex = embeddedAvailable ? readFileSync(embeddedIndexPath, 'utf8') : ''
 const embeddedScriptMatch = embeddedIndex.match(/<script[^>]+src=["']\/([^"']+\.js)["']/)
 const embeddedStylesheetMatch = embeddedIndex.match(/<link[^>]+href=["']\/([^"']+\.css)["']/)
 const embeddedScriptPath = embeddedScriptMatch?.[1] ?? ''
@@ -41,27 +44,34 @@ const embeddedCss = embeddedStylesheetPath ? readFileSync(resolve(embeddedDist, 
 
 assert(!index.includes('featured-hero-runtime'), 'the React source build must not load a duplicate hero runtime')
 assert(!publicFiles.some((file) => file.startsWith('featured-hero-runtime')), 'duplicate hero runtime files still exist in public/')
-assert(!embeddedIndex.includes('featured-hero-bootstrap'), 'embedded index must not load a second hero layer')
-assert(!existsSync(resolve(embeddedDist, 'featured-hero-bootstrap.js')), 'legacy embedded hero bootstrap still exists')
-assert(!existsSync(resolve(embeddedDist, 'featured-hero-bootstrap.css')), 'legacy embedded hero bootstrap CSS still exists')
-assert(!existsSync(resolve(embeddedDist, 'featured-hero-runtime.js')), 'deprecated embedded hero runtime still exists')
-assert(!existsSync(resolve(embeddedDist, 'featured-hero-runtime.css')), 'deprecated embedded hero runtime CSS still exists')
-assert(Boolean(embeddedScriptPath), 'embedded index must reference its production JavaScript bundle')
-assert(Boolean(embeddedStylesheetPath), 'embedded index must reference its production stylesheet')
-assert(embeddedApp.length > 0, 'embedded production JavaScript bundle must not be empty')
-assert(embeddedCss.includes('.ui-dialog-layer'), 'embedded stylesheet must include shared dialog primitives')
-assert(embeddedApp.includes('static-app-backdrop'), 'embedded application bundle must mount the static collection backdrop')
-assert(embeddedCss.includes('.static-app-backdrop'), 'embedded stylesheet must include the static collection backdrop')
-assert(embeddedCss.includes('--focus-shadow-inset'), 'embedded stylesheet must include the clipping-safe focus token')
-assert(embeddedCss.includes('touch-action:pan-x pan-y pinch-zoom'), 'embedded stylesheet must include native multi-axis touch scrolling')
-assert(!embeddedApp.includes('featured-hero__dot-indicator'), 'embedded application must retain the protected direct hero-dot markup')
+if (requireEmbedded) {
+  assert(embeddedAvailable, 'embedded production build is required but apps/server/internal/webui/dist/index.html is missing')
+}
+if (embeddedAvailable) {
+  assert(!embeddedIndex.includes('featured-hero-bootstrap'), 'embedded index must not load a second hero layer')
+  assert(!existsSync(resolve(embeddedDist, 'featured-hero-bootstrap.js')), 'legacy embedded hero bootstrap still exists')
+  assert(!existsSync(resolve(embeddedDist, 'featured-hero-bootstrap.css')), 'legacy embedded hero bootstrap CSS still exists')
+  assert(!existsSync(resolve(embeddedDist, 'featured-hero-runtime.js')), 'deprecated embedded hero runtime still exists')
+  assert(!existsSync(resolve(embeddedDist, 'featured-hero-runtime.css')), 'deprecated embedded hero runtime CSS still exists')
+  assert(Boolean(embeddedScriptPath), 'embedded index must reference its production JavaScript bundle')
+  assert(Boolean(embeddedStylesheetPath), 'embedded index must reference its production stylesheet')
+  assert(embeddedApp.length > 0, 'embedded production JavaScript bundle must not be empty')
+  assert(embeddedCss.includes('.ui-dialog-layer'), 'embedded stylesheet must include shared dialog primitives')
+  assert(embeddedApp.includes('static-app-backdrop'), 'embedded application bundle must mount the static collection backdrop')
+  assert(embeddedCss.includes('.static-app-backdrop'), 'embedded stylesheet must include the static collection backdrop')
+  assert(embeddedCss.includes('--focus-shadow-inset'), 'embedded stylesheet must include the clipping-safe focus token')
+  assert(embeddedCss.includes('touch-action:pan-x pan-y pinch-zoom'), 'embedded stylesheet must include native multi-axis touch scrolling')
+  assert(!embeddedApp.includes('featured-hero__dot-indicator'), 'embedded application must retain the protected direct hero-dot markup')
+}
 
 for (const name of removedRuntimeLayers) {
   assert(!index.includes(name), `index.html still loads the deprecated ${name} runtime layer`)
   assert(!publicFiles.some((file) => file.startsWith(name)), `public/${name} runtime files still exist`)
-  assert(!embeddedIndex.includes(name), `embedded index still loads the deprecated ${name} runtime layer`)
-  assert(!existsSync(resolve(embeddedDist, `${name}.js`)), `embedded ${name}.js runtime file still exists`)
-  assert(!existsSync(resolve(embeddedDist, `${name}.css`)), `embedded ${name}.css runtime file still exists`)
+  if (embeddedAvailable) {
+    assert(!embeddedIndex.includes(name), `embedded index still loads the deprecated ${name} runtime layer`)
+    assert(!existsSync(resolve(embeddedDist, `${name}.js`)), `embedded ${name}.js runtime file still exists`)
+    assert(!existsSync(resolve(embeddedDist, `${name}.css`)), `embedded ${name}.css runtime file still exists`)
+  }
 }
 
 assert(!/^:root\s*\{/m.test(globalCss), 'global.css must not define the root token set')

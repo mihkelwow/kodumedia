@@ -18,6 +18,9 @@
   ning ajaliselt piiratud käivitumise kohta.
 - Windowsi CI ja release-build kasutavad stabiilset TypeScript 6.0.3
   kompilaatorit, et vältida TypeScript 7 native-build'i platvormitõrkeid.
+- UI foundation'i lähtekoodikontroll ei eelda enam puhtas CI checkout'is veel
+  loomata embedded veebibuild'i. Pärast veebibuild'i kopeerimist kontrollitakse
+  embedded faile eraldi kohustuslikus etapis.
 
 ## 0.8.56 - 2026-10-26
 

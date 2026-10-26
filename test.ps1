@@ -22,6 +22,7 @@ Invoke-CheckedCommand -FilePath $npm -Arguments @('run', 'typecheck') -WorkingDi
 Invoke-CheckedCommand -FilePath $npm -Arguments @('test') -WorkingDirectory $webDirectory
 Invoke-CheckedCommand -FilePath $npm -Arguments @('run', 'build') -WorkingDirectory $webDirectory
 Sync-WebAssets -ProjectRoot $root
+Invoke-CheckedCommand -FilePath $node -Arguments @('scripts/verify-ui-foundation.mjs', '--require-embedded') -WorkingDirectory $webDirectory
 Invoke-CheckedCommand -FilePath $go -Arguments @('test', './...') -WorkingDirectory $serverDirectory
 Invoke-CheckedCommand -FilePath $go -Arguments @('vet', './...') -WorkingDirectory $serverDirectory
 

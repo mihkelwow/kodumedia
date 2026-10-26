@@ -36,6 +36,7 @@ if (-not $SkipNpmInstall) {
 }
 Invoke-CheckedCommand -FilePath $npm -Arguments @('run', 'build') -WorkingDirectory $webDirectory
 Sync-WebAssets -ProjectRoot $root
+Invoke-CheckedCommand -FilePath $node -Arguments @('scripts/verify-ui-foundation.mjs', '--require-embedded') -WorkingDirectory $webDirectory
 Invoke-CheckedCommand -FilePath $go -Arguments @('test', './internal/buildinfo') -WorkingDirectory $serverDirectory
 
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
