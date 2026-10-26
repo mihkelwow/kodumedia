@@ -16,6 +16,8 @@
   jääb muutmata; hotfix puudutab ainult kohalikku brauseriplayerit.
 - Lisatud on regressioonitestid kõrge kvaliteediga transkodeeringu puhvriläve
   ning ajaliselt piiratud käivitumise kohta.
+- Windowsi CI ja release-build kasutavad stabiilset TypeScript 6.0.3
+  kompilaatorit, et vältida TypeScript 7 native-build'i platvormitõrkeid.
 
 ## 0.8.56 - 2026-10-26
 
