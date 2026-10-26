@@ -30,6 +30,12 @@
 - Windowsi lõplikus testpakis kinnitati filmi esitamise ja playeri diagnostika
   töö. README sai juurde playeri ning diagnostika kuvatõmmised ja läbipaistva
   AI-assisted/prompt-driven arenduse märkuse.
+- Parandatud Windowsi release-pakkija: ZIP-kirjed kasutavad nüüd alati ZIP-i
+  standardseid `/` eraldajaid. Varasem pakk kirjutas Windowsis kirjed `\`
+  eraldajatega ning 0.8.56 range uuenduskontroll lükkas seetõttu korrektse nime
+  ja manifestiga 0.8.57 faili tagasi teatega „vigane ZIP-failitee”.
+- Pakkija avab valminud ZIP-i uuesti ja katkestab build'i, kui mõni kirje pole
+  uuendajaga ühilduv või oodatud release-manifest puudub.
 
 ## 0.8.56 - 2026-10-26
 

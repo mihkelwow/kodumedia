@@ -148,8 +148,61 @@ $manifestPath = Join-Path $stage 'release-manifest.json'
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $zipPath = Join-Path $OutputDirectory "$packageName.zip"
 if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-[System.IO.Compression.ZipFile]::CreateFromDirectory($work, $zipPath, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+
+# ZipFile.CreateFromDirectory on Windows PowerShell/.NET Framework stores entry
+# names with Windows backslashes. The update validator deliberately accepts
+# only ZIP-standard forward slashes so an archive path has one unambiguous
+# meaning on every platform. Create each entry explicitly with a normalized
+# name instead of inheriting the host OS directory separator.
+$archive = [System.IO.Compression.ZipFile]::Open(
+    $zipPath,
+    [System.IO.Compression.ZipArchiveMode]::Create
+)
+try {
+    Get-ChildItem -LiteralPath $work -Recurse -File |
+        Sort-Object FullName |
+        ForEach-Object {
+            $entryName = $_.FullName.Substring($work.Length).TrimStart('\', '/').Replace('\', '/')
+            if ([string]::IsNullOrWhiteSpace($entryName) -or $entryName.Contains('\')) {
+                throw "Vigane ZIP-kirje tee: $entryName"
+            }
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $archive,
+                $_.FullName,
+                $entryName,
+                [System.IO.Compression.CompressionLevel]::Optimal
+            ) | Out-Null
+        }
+}
+finally {
+    $archive.Dispose()
+}
+
+# Treat updater compatibility as a packaging postcondition. A green release
+# build must never publish an archive that the currently installed version
+# rejects before reading its manifest.
+$verificationArchive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+try {
+    $entryNames = @($verificationArchive.Entries | ForEach-Object { $_.FullName })
+    $invalidEntry = $entryNames | Where-Object {
+        [string]::IsNullOrWhiteSpace($_) -or $_.Contains('\') -or $_.StartsWith('/') -or $_.Contains(':')
+    } | Select-Object -First 1
+    if ($null -ne $invalidEntry) {
+        throw "Uuenduspakett sisaldab uuendajaga ühildumatut ZIP-kirjet: $invalidEntry"
+    }
+    $expectedManifestEntry = "$packageName/release-manifest.json"
+    if ($entryNames -notcontains $expectedManifestEntry) {
+        throw "Uuenduspaketist puudub oodatud manifest: $expectedManifestEntry"
+    }
+    if ($entryNames.Count -ne ($files.Count + 1)) {
+        throw "Uuenduspaketi failide arv ei vasta manifestile."
+    }
+}
+finally {
+    $verificationArchive.Dispose()
+}
 
 Write-Host "`nValmis KoduMedia uuenduspakett:" -ForegroundColor Green
 Write-Host $zipPath
