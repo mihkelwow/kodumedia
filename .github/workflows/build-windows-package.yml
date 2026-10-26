@@ -1,0 +1,85 @@
+name: Build Windows test package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build and package Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/server/go.mod
+          cache: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install locked web dependencies
+        working-directory: apps/web
+        run: npm ci --registry=https://registry.npmjs.org/
+
+      - name: Run project checks
+        shell: powershell
+        run: .\test.ps1 -SkipNpmInstall
+
+      - name: Restore bundled FFmpeg from the latest release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $baseTag = (gh release view --json tagName --jq '.tagName').Trim()
+          if ([string]::IsNullOrWhiteSpace($baseTag)) {
+            throw 'No existing GitHub release was found.'
+          }
+          $baseVersion = $baseTag.TrimStart('v')
+          $assetName = "kodumedia-$baseVersion-windows-x64.zip"
+          $download = Join-Path $PWD 'dist\base-release'
+          $expanded = Join-Path $download 'expanded'
+          New-Item -ItemType Directory -Path $download -Force | Out-Null
+          gh release download $baseTag --pattern $assetName --dir $download
+          Expand-Archive -LiteralPath (Join-Path $download $assetName) -DestinationPath $expanded -Force
+
+          $ffmpeg = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'ffmpeg.exe' | Select-Object -First 1
+          $ffprobe = Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter 'ffprobe.exe' | Select-Object -First 1
+          if ($null -eq $ffmpeg -or $null -eq $ffprobe) {
+            throw 'The latest release does not contain FFmpeg and FFprobe.'
+          }
+          $tools = Join-Path $PWD 'tools\ffmpeg\bin'
+          New-Item -ItemType Directory -Path $tools -Force | Out-Null
+          Copy-Item -LiteralPath $ffmpeg.FullName -Destination (Join-Path $tools 'ffmpeg.exe') -Force
+          Copy-Item -LiteralPath $ffprobe.FullName -Destination (Join-Path $tools 'ffprobe.exe') -Force
+
+      - name: Build Windows package
+        shell: powershell
+        run: |
+          $version = (Get-Content -LiteralPath 'VERSION' -Raw).Trim()
+          .\package.ps1 -Version $version -SkipInstaller -OutputDirectory (Join-Path $PWD 'dist\packages')
+          $zip = Get-Item -LiteralPath (Join-Path $PWD "dist\packages\kodumedia-$version-windows-x64.zip")
+          $hash = (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $utf8 = New-Object System.Text.UTF8Encoding($false)
+          [System.IO.File]::WriteAllText("$($zip.FullName).sha256", "$hash  $($zip.Name)`n", $utf8)
+
+      - name: Upload Windows test package
+        uses: actions/upload-artifact@v7
+        with:
+          name: kodumedia-windows-test-package
+          path: |
+            dist/packages/kodumedia-*-windows-x64.zip
+            dist/packages/kodumedia-*-windows-x64.zip.sha256
+          if-no-files-found: error
+          retention-days: 14

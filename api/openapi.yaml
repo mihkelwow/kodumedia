@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: KoduMedia API
-  version: 0.8.56
-  description: 'Versioned HTTP API shared by the browser client and future TV clients. KoduMedia 0.8.56 stabilizes native AirPlay HLS and buffered DLNA/UPnP playback.'
+  version: 0.8.57
+  description: 'Versioned HTTP API shared by the browser client and future TV clients. KoduMedia 0.8.57 fixes a browser HLS startup-buffer deadlock while preserving buffered DLNA/UPnP playback.'
 servers:
 - url: /api/v1
 paths:

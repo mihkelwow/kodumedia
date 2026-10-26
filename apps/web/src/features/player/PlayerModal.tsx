@@ -127,10 +127,27 @@ export function startupBufferTargetSeconds(
   durationSeconds: number,
   plan?: PlaybackPlan,
 ): number {
-  if ((plan?.startupBufferSeconds ?? 0) > 0)
-    return plan?.startupBufferSeconds ?? 8;
-  if (durationSeconds > 0 && durationSeconds < 90) return 3;
-  return 8;
+  const short = durationSeconds > 0 && durationSeconds < 90;
+  const planned = (plan?.startupBufferSeconds ?? 0) > 0
+    ? plan?.startupBufferSeconds ?? 8
+    : short ? 3 : 8;
+  // The larger plan value also describes how much headroom the encoder should
+  // build and how long a DLNA hand-off may wait on the server. Requiring the
+  // browser's paused media element to reach 14–20 seconds can deadlock startup:
+  // Chromium may stop appending at roughly ten seconds until playback begins.
+  return Math.min(planned, short ? 3 : 8);
+}
+
+export function shouldStartBufferedPlayback(
+  bufferedAhead: number,
+  targetSeconds: number,
+  waitingMs: number,
+  readyState: number,
+): boolean {
+  if (bufferedAhead >= targetSeconds) return true;
+  // Fail open once the media element has playable data. This keeps a slow or
+  // conservative MSE implementation from waiting forever just below target.
+  return waitingMs >= 6_000 && (bufferedAhead >= 2 || readyState >= 3);
 }
 
 export function bufferPolicyForPlan(
@@ -142,11 +159,17 @@ export function bufferPolicyForPlan(
   return {
     startupSeconds,
     rebufferSeconds:
-      plan?.rebufferBufferSeconds ?? (short ? 6 : plan?.mode === "direct" ? 8 : 20),
+      Math.min(
+        plan?.rebufferBufferSeconds ?? (short ? 6 : plan?.mode === "direct" ? 8 : 20),
+        short ? 6 : 10,
+      ),
     desiredSeconds:
       plan?.desiredBufferSeconds ?? (short ? 12 : plan?.mode === "direct" ? 20 : 40),
     lowSeconds:
-      plan?.lowBufferSeconds ?? (short ? 3 : plan?.mode === "direct" ? 4 : 12),
+      Math.min(
+        plan?.lowBufferSeconds ?? (short ? 3 : plan?.mode === "direct" ? 4 : 12),
+        short ? 3 : 6,
+      ),
   };
 }
 
@@ -1065,6 +1088,7 @@ export function PlayerModal({
     let cancelled = false;
     let hls: HlsType | undefined;
     let autoPlayStarted = false;
+    const startupWaitStartedAt = Date.now();
     let networkRecoveryAttempts = 0;
     let mediaRecoveryAttempts = 0;
     const recoveryTimers = new Set<number>();
@@ -1103,7 +1127,12 @@ export function PlayerModal({
       }
       if (!autoPlayStarted) {
         updateBufferPhase("startup");
-        if (ahead >= targetBuffer) {
+        if (shouldStartBufferedPlayback(
+          ahead,
+          targetBuffer,
+          Date.now() - startupWaitStartedAt,
+          video.readyState,
+        )) {
           autoPlayStarted = true;
           updateBufferPhase("ready");
           void video.play().catch(() => undefined);
@@ -1113,7 +1142,12 @@ export function PlayerModal({
       if (
         bufferPhaseRef.current === "rebuffering" &&
         resumeAfterBufferRef.current &&
-        ahead >= rebufferTarget
+        shouldStartBufferedPlayback(
+          ahead,
+          rebufferTarget,
+          Date.now() - (stallStartedAtRef.current ?? Date.now()),
+          video.readyState,
+        )
       ) {
         resumeAfterBufferRef.current = false;
         updateBufferPhase("ready");

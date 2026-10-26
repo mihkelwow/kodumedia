@@ -12,7 +12,7 @@ KoduMedia is a self-hosted media server for Windows. It combines a Go backend
 with a responsive React web interface for browsing and playing movies, TV
 series and music on a trusted home network.
 
-The current release is **0.8.56**.
+The current release is **0.8.57**.
 
 [![KoduMedia home screen showing the featured title and Continue Watching](docs/screenshots/home-overview.png)](docs/screenshots/home-overview.png)
 
@@ -104,7 +104,7 @@ The player exposes the methods available for the current browser and network:
 - **Google Cast** requires a secure browser context such as HTTPS.
 - **DLNA/UPnP** discovery and control are handled by the KoduMedia server.
 
-KoduMedia 0.8.56 uses MPEG-TS HLS and a deliberate startup buffer for Samsung
+KoduMedia uses MPEG-TS HLS and a deliberate startup buffer for Samsung
 and other DLNA televisions. A DLNA session may therefore take 12–20 seconds to
 start before steady playback begins.
 

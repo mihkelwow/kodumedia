@@ -7,7 +7,7 @@ packages are not supported.
 
 ## Important deployment boundary
 
-KoduMedia 0.8.56 is intended for a trusted home network. It does not yet have
+KoduMedia 0.8.57 is intended for a trusted home network. It does not yet have
 user accounts, TLS termination or secure internet-facing remote access.
 
 - Do not expose port `8096` to the public internet.

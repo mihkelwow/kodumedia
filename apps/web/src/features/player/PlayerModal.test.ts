@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PlaybackPlan, PlaybackSession } from '../../api/types'
-import { actualPositionMs, bufferPolicyForPlan, bufferedAheadSeconds, hlsBufferSizeBytes, isBufferedAt, shouldUseNativeHls, startupBufferTargetSeconds } from './PlayerModal'
+import { actualPositionMs, bufferPolicyForPlan, bufferedAheadSeconds, hlsBufferSizeBytes, isBufferedAt, shouldStartBufferedPlayback, shouldUseNativeHls, startupBufferTargetSeconds } from './PlayerModal'
 
 describe('player timeline math', () => {
   it('uses the original media position for a restarted HLS session', () => {
@@ -37,7 +37,7 @@ describe('player timeline math', () => {
     expect(shouldUseNativeHls(false, true)).toBe(false)
   })
 
-  it('uses server-defined startup and rebuffer targets for high-quality transcodes', () => {
+  it('caps server-defined startup targets so a paused browser cannot deadlock below them', () => {
     const plan = {
       mode: 'transcode',
       reason: 'quality engine',
@@ -49,11 +49,18 @@ describe('player timeline math', () => {
     } satisfies PlaybackPlan
 
     expect(bufferPolicyForPlan(plan, 7_200)).toEqual({
-      startupSeconds: 20,
-      rebufferSeconds: 30,
+      startupSeconds: 8,
+      rebufferSeconds: 10,
       desiredSeconds: 55,
-      lowSeconds: 18,
+      lowSeconds: 6,
     })
+  })
+
+  it('starts with playable data after a bounded wait even just below the target', () => {
+    expect(shouldStartBufferedPlayback(7.9, 8, 5_999, 3)).toBe(false)
+    expect(shouldStartBufferedPlayback(7.9, 8, 6_000, 3)).toBe(true)
+    expect(shouldStartBufferedPlayback(2, 8, 6_000, 2)).toBe(true)
+    expect(shouldStartBufferedPlayback(0, 8, 60_000, 1)).toBe(false)
   })
 
   it('keeps direct playback buffer targets lightweight', () => {

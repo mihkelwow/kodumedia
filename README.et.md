@@ -8,7 +8,7 @@ KoduMedia on Windowsile mõeldud isemajutatud meediaserver. Go server ja
 Reacti veebiliides võimaldavad koduvõrgus filme, seriaale ning muusikat sirvida
 ja esitada.
 
-Praegune versioon on **0.8.56**.
+Praegune versioon on **0.8.57**.
 
 [![KoduMedia avaleht esiletõstetud teose ja poolelijäänud vaatamistega](docs/screenshots/home-overview.png)](docs/screenshots/home-overview.png)
 
@@ -98,7 +98,7 @@ Player näitab neid võimalusi, mida kasutatav brauser ja võrk parajasti toetav
 - **Google Cast** vajab turvalist brauserikonteksti, näiteks HTTPS-i.
 - **DLNA/UPnP** seadmete leidmise ja juhtimise teeb KoduMedia server.
 
-Versioon 0.8.56 kasutab Samsungi ja teiste DLNA-telerite jaoks MPEG-TS HLS-i
+KoduMedia kasutab Samsungi ja teiste DLNA-telerite jaoks MPEG-TS HLS-i
 ning teadlikku alguspuhvrit. Seetõttu võib DLNA esitus enne sujuvat käivitumist
 oodata 12–20 sekundit.
 

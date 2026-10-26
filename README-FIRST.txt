@@ -1,9 +1,14 @@
-KoduMedia 0.8.56 - Windows x64
+KoduMedia 0.8.57 - Windows x64
 
 KÄIVITAMINE
 1. Paki ZIP täielikult lahti kohalikule kettale.
 2. Käivita start-kodumedia.cmd.
 3. Ava brauseris http://127.0.0.1:8096.
+
+0.8.57 PLAYERI KÄIVITUMISE HOTFIX
+- Filmid ja seriaalid ei jää enam brauseris lõputult 14–20 sekundi puhvrit ootama.
+- Player alustab töökindla brauseripuhvriga ja jätkab aeglase voo korral ise.
+- Samsungi/DLNA 12–20 sekundi serveripuhver ning AirPlay parandused säilivad.
 
 0.8.56 TÖÖKINDEL AIRPLAY JA PUHVERDATUD SAMSUNG DLNA
 - iPhone ja Safari annavad AirPlay-telerile nüüd päris native HLS võrguaadressi.

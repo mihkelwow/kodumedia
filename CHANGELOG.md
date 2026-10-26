@@ -1,3 +1,22 @@
+## 0.8.57 - 2026-10-26
+
+### Playeri käivitumise hotfix
+
+- Parandatud 0.8.56 regressioon, mille tõttu film või seriaali osa võis jääda
+  brauseris lõputult olekusse „Puhverdan esituse algust 10 / 14 s…” või oodata
+  20-sekundilist läve ka siis, kui esitatav HLS-voog oli juba valmis.
+- Brauseri kohustuslik käivituspuhver on nüüd piiratud maksimaalselt kaheksa
+  sekundiga. Serveri suurem encoder-headroom ei ole enam brauseri stardi
+  blokeeriv tingimus.
+- Kui brauser on kuus sekundit oodanud ja meediaelement kinnitab esitatavate
+  andmete olemasolu, alustab player tööd ka täpsest puhvrieesmärgist veidi allpool.
+- Ka taas-puhverdamine kasutab brauseris lõplikku ülempiiri ega saa jääda
+  suure serveripoolse eesmärgi taha lõputult ootama.
+- Samsungi ja teiste DLNA-telerite 12–20 sekundi serveripoolne valmisolekupuhver
+  jääb muutmata; hotfix puudutab ainult kohalikku brauseriplayerit.
+- Lisatud on regressioonitestid kõrge kvaliteediga transkodeeringu puhvriläve
+  ning ajaliselt piiratud käivitumise kohta.
+
 ## 0.8.56 - 2026-10-26
 
 ### Töökindel AirPlay ja puhverdatud Samsung DLNA
