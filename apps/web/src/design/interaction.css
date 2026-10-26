@@ -1,0 +1,122 @@
+/* KoduMedia 0.8.39 — touch and spatial-navigation contract.
+   Keep native scrolling native, keep every focus indicator inside clipping
+   boundaries, and never draw both a card shell and thumbnail focus ring. */
+
+[data-focusable="true"] {
+  scroll-margin: var(--focus-gutter);
+}
+
+[data-focusable="true"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-shadow-inset);
+}
+
+.media-play-button[data-focusable="true"]:focus-visible {
+  box-shadow: var(--media-play-shadow), var(--focus-shadow-inset);
+}
+
+[data-pressable="true"],
+.media-card,
+.music-track-row,
+.music-album-card,
+.music-artist-card,
+.episode-row,
+.season-tab {
+  touch-action: manipulation;
+}
+
+.media-row__scroller,
+.app-header__nav,
+.sidebar,
+.settings-navigation,
+.settings-navigation nav,
+.season-tabs,
+.cast-list--cinematic,
+.library-filter-strip {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.media-row__scroller {
+  scroll-padding-inline: max(clamp(28px, 4vw, 72px), var(--focus-gutter));
+}
+
+/* The card button includes its copy, but keyboard/remote selection belongs to
+   the artwork. An inset overlay stays visible even at a scrollport edge. */
+.media-card:focus-visible {
+  box-shadow: none;
+}
+
+.media-card:focus-visible .media-card__visual {
+  box-shadow: 0 13px 34px rgba(0, 0, 0, .25);
+}
+
+.media-card__visual::after {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 0 transparent;
+  content: "";
+  pointer-events: none;
+  transition: box-shadow var(--motion-fast) ease;
+}
+
+.media-card:focus-visible .media-card__visual::after {
+  box-shadow: var(--focus-shadow-inset);
+}
+
+/* Search results are rows rather than poster cards, so they keep one inset
+   row indicator and suppress the small artwork indicator. */
+.media-card--search:focus-visible {
+  box-shadow: var(--focus-shadow-inset);
+}
+
+.media-card--search:focus-visible .media-card__visual {
+  box-shadow: none;
+}
+
+.media-card--search:focus-visible .media-card__visual::after {
+  box-shadow: none;
+}
+
+/* Focusing a hero control must not frame the entire hero a second time. */
+.featured-hero:focus-within {
+  border-color: rgba(255, 255, 255, .22);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .media-card:active .media-card__visual {
+    opacity: .92;
+    transform: scale(.985);
+  }
+
+  .media-card__visual {
+    transition: opacity var(--motion-press) ease, transform var(--motion-press) var(--ease-out);
+  }
+}
+
+@media (pointer: coarse) {
+  .button,
+  .app-header__nav-link,
+  .app-header__search,
+  .app-header__action-link,
+  .music-player button {
+    min-height: var(--tap-target);
+  }
+
+  .app-header__search,
+  .app-header__action-link,
+  .music-player button {
+    min-width: var(--tap-target);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-card__visual,
+  .media-card__visual::after {
+    transition-duration: 1ms;
+  }
+}

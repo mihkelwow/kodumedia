@@ -1,0 +1,5 @@
+KoduMedia uses these bundled Windows x64 FFmpeg and FFprobe executables by
+default. A custom path may still be selected in Settings. The bundled build is
+FFmpeg 9.0.2 Essentials and includes broad software decoding/encoding, libass,
+libx264, libx265, libaom, libvpx, libopus, libzimg and common Windows hardware
+acceleration interfaces.

@@ -1,0 +1,37 @@
+/* Shared motion policy. Interactive UI uses transitions so interrupted state
+   changes retarget smoothly instead of restarting keyframes. */
+
+[data-motion="instant"] {
+  --local-motion-duration: 0ms;
+}
+
+[data-motion="standard"] {
+  --local-motion-duration: var(--motion-panel);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-pressable="true"]:hover {
+    will-change: transform;
+  }
+}
+
+
+[data-pressable="true"]:active:not(:disabled) {
+  transform: scale(.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    transition-delay: 0ms !important;
+  }
+}

@@ -1,0 +1,200 @@
+/* KoduMedia 0.8.38 — static collection backdrop and stable detail artwork.
+   This file is intentionally imported after primitives.css so performance
+   overrides remain the final cascade. */
+
+html {
+  scroll-behavior: auto;
+}
+
+.app-shell {
+  isolation: isolate;
+}
+
+/* This is the approved dark/light collection artwork translated to native CSS.
+   It is deliberately one fixed, opaque layer: no image, blur, backdrop-filter,
+   animation, background attachment or hover-driven repaint belongs here. */
+.static-app-backdrop {
+  position: fixed;
+  z-index: -4;
+  inset: 0;
+  contain: strict;
+  background:
+    radial-gradient(ellipse 58% 78% at -8% 84%, var(--static-backdrop-pink) 0%, var(--static-backdrop-pink-soft) 36%, transparent 72%),
+    radial-gradient(ellipse 66% 78% at 104% -8%, var(--static-backdrop-blue) 0%, transparent 72%),
+    radial-gradient(ellipse 42% 48% at 66% -8%, var(--static-backdrop-lilac) 0%, transparent 72%),
+    linear-gradient(148deg, #18161d 0%, var(--static-backdrop-base) 48%, var(--static-backdrop-neutral) 78%, #111116 100%);
+  pointer-events: none;
+}
+
+:root[data-theme="light"] .static-app-backdrop {
+  background:
+    radial-gradient(ellipse 58% 82% at -8% 82%, var(--static-backdrop-pink) 0%, var(--static-backdrop-pink-soft) 37%, transparent 72%),
+    radial-gradient(ellipse 66% 78% at 104% -8%, var(--static-backdrop-blue) 0%, transparent 72%),
+    radial-gradient(ellipse 42% 48% at 65% -8%, var(--static-backdrop-lilac) 0%, transparent 72%),
+    linear-gradient(148deg, #eeeae8 0%, var(--static-backdrop-base) 52%, var(--static-backdrop-neutral) 100%);
+}
+
+/* Keep ambient strength on the parent so two fully opaque artwork buffers can
+   crossfade without a luminance dip. Both buffers stay mounted and promoted;
+   only the decoded incoming layer ever transitions. */
+.ambient-backdrop,
+:root[data-theme="light"] .ambient-backdrop {
+  opacity: .34;
+}
+
+.ambient-backdrop--subtle {
+  opacity: .17;
+}
+
+:root[data-theme="light"] .ambient-backdrop {
+  opacity: .18;
+}
+
+:root[data-theme="light"] .ambient-backdrop--subtle {
+  opacity: .1;
+}
+
+.ambient-backdrop__layer {
+  filter: blur(36px) saturate(1.08);
+  opacity: 0;
+  transition: none;
+  will-change: opacity;
+}
+
+.ambient-backdrop__layer--base {
+  opacity: 1;
+  z-index: 0;
+}
+
+.ambient-backdrop__layer--incoming {
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 360ms var(--ease-in-out);
+}
+
+.ambient-backdrop__layer--incoming.ambient-backdrop__layer--revealed {
+  opacity: 1;
+}
+
+:root[data-theme="light"] .ambient-backdrop__layer {
+  filter: blur(38px) saturate(.9);
+}
+
+.details__background {
+  filter: blur(36px) saturate(1.08);
+}
+
+:root[data-theme="light"] .details__background {
+  filter: blur(38px) saturate(.9);
+}
+
+/* Frequent thumbnail feedback is deliberately tiny and compositor-only. */
+.media-card__visual img {
+  transition: transform var(--motion-press) var(--ease-out);
+}
+
+/* No layout animation on rows people sweep repeatedly. */
+.notification-row {
+  transition: background-color var(--motion-press) ease, opacity var(--motion-press) ease;
+}
+
+.notification-row:hover,
+.notification-row:focus-visible {
+  padding-inline: 8px;
+}
+
+/* Control visibility is high-frequency; captions snap to their safe position. */
+.player-subtitle-layer,
+.player-live-caption-layer {
+  transition: none;
+}
+
+/* Avoid resampling moving content through large or fixed glass surfaces. */
+.app-header__nav,
+.app-header__actions > .icon-button,
+.header-notifications > .icon-button,
+.header-notifications__button.icon-button,
+.app-header__action-link,
+.round-tool,
+.music-player,
+.library-quick-search,
+.music-track-search,
+.music-all-tracks-entry,
+.settings-navigation,
+.system-settings-actions,
+.details__technical-band,
+.series-release-callout {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.app-header__nav {
+  background: rgba(38, 34, 43, .94);
+}
+
+.app-header__actions > .icon-button,
+.header-notifications > .icon-button,
+.header-notifications__button.icon-button,
+.app-header__action-link,
+.round-tool {
+  background: rgba(47, 44, 51, .92);
+}
+
+.library-quick-search {
+  background: color-mix(in srgb, var(--surface-solid) 94%, var(--bg));
+}
+
+.music-track-search {
+  background: rgba(18, 15, 23, .94);
+}
+
+.music-all-tracks-entry {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(239, 181, 200, .12), transparent 34%),
+    radial-gradient(circle at 82% 12%, rgba(184, 200, 234, .1), transparent 38%),
+    linear-gradient(145deg, rgba(27, 23, 32, .97), rgba(15, 14, 20, .96));
+}
+
+.music-player {
+  background: rgba(18, 15, 23, .97);
+}
+
+.system-settings-actions {
+  background: color-mix(in srgb, var(--surface-solid) 96%, var(--bg));
+}
+
+.details__technical-band {
+  background: rgba(17, 14, 21, .9);
+}
+
+.series-release-callout {
+  background:
+    linear-gradient(180deg, rgba(58, 48, 64, .96), rgba(39, 32, 44, .96)),
+    #27202c;
+}
+
+:root[data-theme="light"] .app-header__nav,
+:root[data-theme="light"] .app-header__actions > .icon-button,
+:root[data-theme="light"] .header-notifications > .icon-button,
+:root[data-theme="light"] .header-notifications__button.icon-button,
+:root[data-theme="light"] .app-header__action-link,
+:root[data-theme="light"] .round-tool,
+:root[data-theme="light"] .library-quick-search,
+:root[data-theme="light"] .music-track-search,
+:root[data-theme="light"] .music-player,
+:root[data-theme="light"] .system-settings-actions {
+  background: rgba(250, 248, 248, .97);
+}
+
+:root[data-theme="light"] .details__technical-band {
+  background: rgba(255, 255, 255, .9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-backdrop__layer,
+  .media-card__visual img,
+  .featured-hero__dot,
+  .notification-row {
+    transition-duration: 1ms;
+  }
+}

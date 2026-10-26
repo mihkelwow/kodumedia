@@ -1,0 +1,79 @@
+KoduMedia 0.8.38 third-party notices
+===================================
+
+FFmpeg 9.0.2 Essentials Build (Windows x64)
+-------------------------------------------
+KoduMedia redistributes the 64-bit static FFmpeg 9.0.2 Essentials Build
+published by Gyan Doshi / gyan.dev. The binaries are licensed under GNU GPL
+version 3. The complete license text and upstream build configuration are
+included in tools/ffmpeg/.
+
+Upstream project: https://ffmpeg.org/
+Build publisher: https://www.gyan.dev/ffmpeg/builds/
+Source commit recorded by the build: 946fcce07b
+
+yt-dlp 2026.07.04 (downloaded on demand)
+------------------------------------------
+KoduMedia does not redistribute yt-dlp in the release ZIP. On Windows, when no
+custom executable is configured and yt-dlp is absent from PATH, the server may
+download the pinned official yt-dlp 2026.07.04 executable on first use. The
+SHA-256 checksum is verified before execution and the file is stored under the
+server data directory. The PyInstaller-bundled executable is distributed by the
+yt-dlp project under GPLv3+ as a combined work and includes its own third-party
+license notices upstream.
+
+Upstream project: https://github.com/yt-dlp/yt-dlp
+Pinned release: https://github.com/yt-dlp/yt-dlp/releases/tag/2026.07.04
+Expected SHA-256: 52fe3c26dcf71fbdc85b528589020bb0b8e383155cfa81b64dd447bbe35e24b8
+
+ThemerrDB
+---------
+KoduMedia queries the public ThemerrDB data endpoint by TMDb series ID to find
+the curator-provided YouTube theme reference. ThemerrDB audio is not bundled in
+KoduMedia; successfully resolved audio is cached locally by the user's server.
+
+Upstream project: https://github.com/LizardByte/ThemerrDB
+Service: https://app.lizardbyte.dev/ThemerrDB/
+
+hls.js 1.6.16
+-------------
+The web client uses hls.js under its Apache-2.0 license. Its source and license
+information are available from the package metadata in apps/web/package-lock.json.
+
+Embla Carousel 8.6.0
+--------------------
+The web client uses Embla Carousel and its React adapter for direct-manipulation
+touch, pointer and momentum handling in the homepage hero carousel. Embla
+Carousel is Copyright (c) David Jerleke and distributed under the MIT license.
+
+Upstream project: https://www.embla-carousel.com/
+Package metadata: apps/web/package-lock.json
+
+React, Vite and other JavaScript dependencies
+---------------------------------------------
+Development and web-client dependencies retain their respective upstream
+licenses. See apps/web/package-lock.json for exact versions.
+
+Chromaprint / fpcalc 1.6.0
+-------------------------
+When the user enables AcoustID fingerprinting and configures a free API key,
+the Windows server may download the official Chromaprint fpcalc 1.6.0 binary
+from the upstream GitHub release. KoduMedia verifies the archive against the
+pinned SHA-256 value before extracting or executing it and stores the upstream
+license text beside the tool in data/music-metadata/tools/.
+
+Upstream project: https://acoustid.org/chromaprint
+Release source: https://github.com/acoustid/chromaprint/releases/tag/v1.6.0
+
+shazamio-core fingerprint implementation
+----------------------------------------
+KoduMedia's native Go Shazam signature generator adapts the fingerprint
+algorithm and binary signature format from shazamio-core. The upstream project
+is MIT-licensed. KoduMedia sends only a compact generated acoustic signature,
+not the original audio file, to an unofficial reverse-engineered Shazam
+recognition endpoint. This endpoint is not an official documented public API
+and may change or rate-limit requests.
+
+Upstream project: https://github.com/shazamio/shazamio-core
+Copyright: Copyright (c) 2024 dotX12
+License: MIT; complete text in tools/licenses/shazamio-core-MIT.txt

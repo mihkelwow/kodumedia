@@ -1,0 +1,59 @@
+name: Bug report
+description: Report a reproducible KoduMedia problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include API keys, passwords, private media links or unredacted personal paths. Use the Security tab for vulnerabilities.
+  - type: input
+    id: version
+    attributes:
+      label: KoduMedia version
+      placeholder: 0.8.56
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Windows version, browser, device or TV model, and connection type.
+      placeholder: Windows 11, Chrome 140, Samsung RU7172, Ethernet
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observed and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Relevant media details
+      description: Container, codecs, resolution, HDR mode and subtitle type. Do not upload copyrighted media.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Remove tokens, usernames and personal paths before pasting logs.
+      render: shell
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials and private information from this report.
+          required: true

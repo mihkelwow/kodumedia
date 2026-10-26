@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Windows build and tests
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/server/go.mod
+          cache-dependency-path: apps/server/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install locked web dependencies
+        working-directory: apps/web
+        run: npm ci --registry=https://registry.npmjs.org/
+
+      - name: Run project checks
+        shell: powershell
+        run: .\test.ps1 -SkipNpmInstall

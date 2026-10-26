@@ -1,0 +1,264 @@
+/* Shared interactive primitives. Feature styles may arrange these components,
+   but must not redefine their control shell, focus or motion behaviour. */
+
+.icon-button {
+  display: inline-grid;
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    transform var(--motion-press) var(--ease-out),
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.icon-button--small {
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+}
+
+.icon-button--ghost { background: transparent; }
+.icon-button--surface { background: var(--surface-input); border-color: var(--border); }
+.icon-button--primary { background: var(--accent); color: var(--accent-contrast); }
+.icon-button:active:not(:disabled) { transform: scale(.97); }
+.icon-button:disabled { cursor: not-allowed; opacity: .45; }
+
+@media (hover: hover) and (pointer: fine) {
+  .icon-button--ghost:hover,
+  .icon-button--surface:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+}
+
+.ui-field {
+  display: grid;
+  width: min(100%, 720px);
+  gap: 8px;
+}
+
+.ui-field--compact { width: min(100%, 420px); }
+.ui-field__label { color: var(--text); font-size: 13px; font-weight: 680; }
+.ui-field__help,
+.ui-field__error { font-size: 11px; line-height: 1.5; }
+.ui-field__help { color: var(--text-tertiary); }
+.ui-field__error { color: var(--danger); }
+.ui-field > input,
+.ui-field > textarea,
+.ui-field > .select-control { width: 100%; }
+
+.ui-dialog-layer {
+  position: fixed;
+  z-index: var(--z-dialog);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(14px, 3vw, 40px);
+  background: var(--scrim);
+  backdrop-filter: blur(14px);
+  opacity: 1;
+  transition: opacity var(--local-motion-duration, var(--motion-panel)) ease;
+}
+
+.ui-dialog-surface {
+  min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
+  outline: none;
+  transform: translateY(0) scale(1);
+  transform-origin: center;
+  transition:
+    transform var(--local-motion-duration, var(--motion-panel)) var(--ease-out),
+    opacity var(--local-motion-duration, var(--motion-panel)) ease;
+}
+
+.ui-dialog-layer[data-motion="standard"] {
+  @starting-style { opacity: 0; }
+}
+
+.ui-dialog-layer[data-motion="standard"] .ui-dialog-surface {
+  @starting-style {
+    opacity: 0;
+    transform: translateY(8px) scale(.98);
+  }
+}
+
+.ui-popover-root { position: relative; }
+
+.ui-popover {
+  position: absolute;
+  z-index: var(--z-popover);
+  min-width: 220px;
+  max-width: min(380px, calc(100vw - 28px));
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-solid) 92%, transparent);
+  box-shadow: var(--shadow-popover);
+  color: var(--text);
+  backdrop-filter: blur(24px) saturate(130%);
+  transform: translateY(0) scale(1);
+  transition: transform var(--motion-fast) var(--ease-out), opacity var(--motion-fast) ease;
+}
+
+.ui-popover--bottom-start { top: calc(100% + 10px); left: 0; transform-origin: top left; }
+.ui-popover--bottom-end { top: calc(100% + 10px); right: 0; transform-origin: top right; }
+.ui-popover--top-start { bottom: calc(100% + 10px); left: 0; transform-origin: bottom left; }
+.ui-popover--top-end { right: 0; bottom: calc(100% + 10px); transform-origin: bottom right; }
+
+.ui-popover {
+  @starting-style {
+    opacity: 0;
+    transform: translateY(-4px) scale(.98);
+  }
+}
+
+.ui-popover--top-start,
+.ui-popover--top-end {
+  @starting-style { transform: translateY(4px) scale(.98); }
+}
+
+.ui-menu { display: grid; gap: 2px; padding: 6px; }
+
+.ui-menu-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
+  min-height: var(--tap-target);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.ui-menu-item__icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--surface-input);
+}
+
+.ui-menu-item__copy { display: grid; min-width: 0; gap: 2px; }
+.ui-menu-item__copy strong { overflow: hidden; color: inherit; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.ui-menu-item__copy small { overflow: hidden; color: var(--text-tertiary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.ui-menu-item--selected { background: var(--accent-soft); color: var(--accent-strong); }
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-menu-item:hover { background: var(--surface-hover); color: var(--text); }
+}
+
+
+/* Full-screen detail routes keep their feature layout while the shared dialog
+   owns focus, dismissal and motion. */
+.ui-dialog-layer.details-layer {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  background: var(--surface-cinematic);
+  backdrop-filter: none;
+}
+
+.ui-dialog-layer.file-browser-layer {
+  z-index: 150;
+}
+
+/* Full-screen command/search surfaces are instant because they are commonly
+   opened from the keyboard. The shared dialog still owns focus and dismissal. */
+.ui-dialog-layer.search-overlay {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
+  backdrop-filter: none;
+}
+
+.search-overlay__surface.ui-dialog-surface {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  overflow: auto;
+}
+
+/* Header actions share one target size and shell. */
+.app-header__actions > .icon-button,
+.header-notifications > .icon-button,
+.header-notifications__button.icon-button {
+  width: 46px;
+  height: 44px;
+  border-color: var(--border);
+  background: rgba(47, 44, 51, .54);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+  backdrop-filter: blur(16px);
+}
+
+:root[data-theme="light"] .app-header__actions > .icon-button,
+:root[data-theme="light"] .header-notifications > .icon-button,
+:root[data-theme="light"] .header-notifications__button.icon-button {
+  background: rgba(255, 255, 255, .65);
+  box-shadow: 0 8px 20px rgba(60, 48, 64, .08), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+
+.app-header__search.icon-button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+}
+
+.app-header__collections-menu.ui-popover,
+.header-notifications__panel.ui-popover {
+  padding: 0;
+}
+
+.app-header__collections-menu.ui-popover {
+  right: auto;
+}
+
+.ui-disclosure {
+  width: 100%;
+  border-top: 1px solid var(--border);
+}
+
+.ui-disclosure > summary {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  min-height: 58px;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  list-style: none;
+}
+
+.ui-disclosure > summary::-webkit-details-marker { display: none; }
+.ui-disclosure > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
+.ui-disclosure__icon { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--border); border-radius: var(--radius-pill); }
+.ui-disclosure__copy { display: grid; min-width: 0; gap: 2px; }
+.ui-disclosure__copy strong { color: var(--text); font-size: 13px; }
+.ui-disclosure__copy small { color: var(--text-tertiary); font-size: 10px; line-height: 1.45; }
+.ui-disclosure__chevron { transition: transform var(--motion-fast) var(--ease-out); }
+.ui-disclosure[open] .ui-disclosure__chevron { transform: rotate(180deg); }
+.ui-disclosure__content { display: grid; gap: 18px; padding: 12px 0 8px 47px; }
+
+@media (max-width: 720px) {
+  .ui-disclosure__content { padding-left: 0; }
+}

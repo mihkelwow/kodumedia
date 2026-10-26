@@ -1,0 +1,3442 @@
+openapi: 3.1.0
+info:
+  title: KoduMedia API
+  version: 0.8.56
+  description: 'Versioned HTTP API shared by the browser client and future TV clients. KoduMedia 0.8.56 stabilizes native AirPlay HLS and buffered DLNA/UPnP playback.'
+servers:
+- url: /api/v1
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        '200':
+          description: Server is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - status
+                - version
+                properties:
+                  status:
+                    type: string
+                    const: ok
+                  version:
+                    type: string
+  /system/info:
+    get:
+      operationId: getSystemInfo
+      responses:
+        '200':
+          description: Compact runtime integration status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemInfo'
+  /system/settings:
+    get:
+      operationId: getSystemSettings
+      description: Returns editable runtime settings and a live component check. The stored TMDb token is never returned;
+        only a masked hint is exposed.
+      responses:
+        '200':
+          description: Public settings and current component status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemConfiguration'
+        '503':
+          $ref: '#/components/responses/Error'
+    put:
+      operationId: updateSystemSettings
+      description: Persists settings to the server data directory, applies them immediately, and schedules automatic metadata
+        repair when TMDb is configured.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemSettingsUpdate'
+      responses:
+        '200':
+          description: Saved settings and component status after applying them.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemConfiguration'
+        '400':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /system/settings/test:
+    post:
+      operationId: testSystemSettings
+      description: Tests candidate executable paths, TMDb credentials, and the IMDb source without persisting them or starting
+        a dataset download.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemSettingsUpdate'
+      responses:
+        '200':
+          description: Candidate settings and the resulting live component status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemConfiguration'
+        '400':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /system/storage:
+    get:
+      operationId: getStorageReport
+      description: Reports data-directory usage by category, configured limits, protected free-space reserve, and disk capacity.
+      responses:
+        '200':
+          description: Current storage report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageReport'
+        '503':
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: manageStorage
+      description: 'Runs safe orphan cleanup or clears inactive optimized video data. File-removing actions are loopback-only and require the X-KoduMedia-Storage: manage intent header.'
+      parameters:
+      - name: X-KoduMedia-Storage
+        in: header
+        required: true
+        schema:
+          type: string
+          const: manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StorageCleanupRequest'
+      responses:
+        '200':
+          description: Cleanup result and refreshed storage report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageCleanupResult'
+        '400':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /system/metadata/imdb/refresh:
+    post:
+      operationId: refreshIMDbRatings
+      description: Starts a background refresh of the configured IMDb title.ratings source. Remote sources use conditional
+        HTTP requests and a local server cache; existing catalog ratings are updated afterwards.
+      responses:
+        '202':
+          description: Accepted asynchronous dataset refresh.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '503':
+          $ref: '#/components/responses/Error'
+  /system/update:
+    get:
+      operationId: getUpdateStatus
+      description: Returns the persisted self-update state. Available only to a loopback browser using a loopback Host header.
+      responses:
+        '200':
+          description: Current or most recent update state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateStatus'
+        '403':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: installUpdate
+      description: 'Validates and stages a newer official Windows x64 release ZIP, starts the detached updater helper, and
+        requests a graceful server restart. Loopback-only and requires the X-KoduMedia-Update: install intent header.'
+      parameters:
+      - name: X-KoduMedia-Update
+        in: header
+        required: true
+        schema:
+          type: string
+          const: install
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - package
+              properties:
+                package:
+                  type: string
+                  format: binary
+      responses:
+        '202':
+          description: Package verified and updater helper started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateStatus'
+        '400':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '422':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /filesystem/browse:
+    get:
+      operationId: browseServerFilesystem
+      description: Lightweight server-filesystem fallback for LAN clients or Windows service mode. An empty path returns Windows
+        drive roots; large directories are capped.
+      parameters:
+      - name: path
+        in: query
+        description: Absolute Windows directory path. Omit to list drive roots.
+        schema:
+          type: string
+      - name: files
+        in: query
+        description: Include files in addition to directories.
+        schema:
+          type: boolean
+          default: false
+      - name: extensions
+        in: query
+        description: Comma-separated file extensions used when files=true.
+        schema:
+          type: string
+          example: .exe,.gz
+      - name: extension
+        in: query
+        description: Repeatable alternative to extensions.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Drive roots or directory contents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DirectoryListing'
+        '400':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /filesystem/pick:
+    post:
+      operationId: openNativeWindowsFilePicker
+      description: Opens the native Windows Common Item Dialog on the server computer. For safety and correct desktop ownership
+        this endpoint accepts only loopback requests. A cancelled dialog returns 204.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilePickerRequest'
+      responses:
+        '200':
+          description: Selected absolute Windows path.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilePickerResult'
+        '204':
+          description: The user cancelled the native dialog.
+        '400':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /libraries:
+    get:
+      operationId: listLibraries
+      responses:
+        '200':
+          description: All system and custom libraries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Library'
+    post:
+      operationId: createLibrary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - kind
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                kind:
+                  $ref: '#/components/schemas/LibraryKind'
+      responses:
+        '201':
+          description: Created library.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Library'
+        '400':
+          $ref: '#/components/responses/Error'
+  /libraries/{id}:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: getLibrary
+      responses:
+        '200':
+          description: Library.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Library'
+        '404':
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: updateLibrary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                kind:
+                  $ref: '#/components/schemas/LibraryKind'
+      responses:
+        '200':
+          description: Updated library.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Library'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: deleteLibrary
+      responses:
+        '204':
+          description: Custom library deleted.
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+  /libraries/{id}/sources:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    post:
+      operationId: addLibrarySource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - path
+              properties:
+                path:
+                  type: string
+                  minLength: 1
+                  description: Absolute directory path on the Windows server.
+      responses:
+        '200':
+          description: Library with the new source.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Library'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /libraries/{id}/sources/{sourceId}:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    - name: sourceId
+      in: path
+      required: true
+      schema:
+        type: string
+    delete:
+      operationId: removeLibrarySource
+      responses:
+        '200':
+          description: Library after source removal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Library'
+        '404':
+          $ref: '#/components/responses/Error'
+  /libraries/{id}/scan:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    post:
+      operationId: scanLibrary
+      description: Starts an asynchronous scan. Files are classified as movies, series episodes or music, series parents are
+        generated automatically, and configured metadata providers enrich new or incomplete items in the background.
+      responses:
+        '202':
+          description: Accepted asynchronous scan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /jobs/{id}:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: getJob
+      responses:
+        '200':
+          description: Background job state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          $ref: '#/components/responses/Error'
+  /media:
+    get:
+      operationId: listMedia
+      parameters:
+      - name: libraryId
+        in: query
+        schema:
+          type: string
+      - name: seriesId
+        in: query
+        description: Return episodes belonging to one generated series parent.
+        schema:
+          type: string
+      - name: season
+        in: query
+        description: Return episodes from one season. Values greater than zero are filtered.
+        schema:
+          type: integer
+          minimum: 1
+      - name: type
+        in: query
+        description: Comma-separated media types.
+        schema:
+          type: string
+          example: movie,series
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: genre
+        in: query
+        description: One genre or a comma-separated list of genres matched with OR semantics.
+        schema:
+          type: string
+          example: Action,Adventure
+      - name: yearFrom
+        in: query
+        schema:
+          type: integer
+      - name: yearTo
+        in: query
+        schema:
+          type: integer
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - addedAt
+          - releaseDate
+          - title
+          - rating
+          - year
+          - duration
+          - modifiedAt
+      - name: order
+        in: query
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      responses:
+        '200':
+          description: Filtered media page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaPage'
+  /media/{id}:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: getMedia
+      responses:
+        '200':
+          description: Media item.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaItem'
+        '404':
+          $ref: '#/components/responses/Error'
+  /media/{id}/post-play:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: getPostPlay
+      description: Returns the next chronological episode when available. If the current episode is the newest available episode,
+        returns up to three unwatched movie or series recommendations ranked by shared or related genres. Series recommendations
+        include the oldest unwatched playable episode.
+      responses:
+        '200':
+          description: Next-episode and recommendation data for the completed episode.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostPlay'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /media/{id}/stream:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: streamMedia
+      responses:
+        '200':
+          description: Full media response.
+        '206':
+          description: Byte-range media response.
+        '404':
+          $ref: '#/components/responses/Error'
+        '501':
+          $ref: '#/components/responses/Error'
+  /media/{id}/audio/lossless:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: streamLosslessAudio
+      description: Lossless browser-compatibility fallback for audio-only media. The source is decoded to PCM WAV without a lossy encoder and keeps the source sample rate and channel layout.
+      responses:
+        '200':
+          description: Chunked lossless PCM WAV stream.
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/Error'
+        '501':
+          $ref: '#/components/responses/Error'
+  /media/{id}/artwork:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: getMusicArtwork
+      description: Returns local or embedded artwork, an exact Cover Art Archive image, a high-confidence catalog image, or a neutral generated fallback card.
+      responses:
+        '200':
+          description: Album artwork image.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/Error'
+  /music:
+    get:
+      operationId: getMusicLanding
+      parameters:
+      - name: libraryId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Music landing page with recently played, recently added, artists, and albums.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicLanding'
+        '400':
+          $ref: '#/components/responses/Error'
+  /music/tracks:
+    get:
+      operationId: getMusicTracks
+      description: Returns a paginated, filterable and sortable view of the complete music library together with filter facets.
+      parameters:
+      - name: libraryId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: artist
+        in: query
+        schema:
+          type: string
+      - name: album
+        in: query
+        schema:
+          type: string
+      - name: genre
+        in: query
+        schema:
+          type: string
+      - name: style
+        in: query
+        schema:
+          type: string
+      - name: year
+        in: query
+        schema:
+          type: integer
+      - name: codec
+        in: query
+        schema:
+          type: string
+      - name: quality
+        in: query
+        schema:
+          type: string
+          enum: [lossless, hires, unclassified]
+      - name: sort
+        in: query
+        schema:
+          type: string
+          enum: [title, artist, album, year, addedAt, duration, quality, lastPlayed]
+      - name: order
+        in: query
+        schema:
+          type: string
+          enum: [asc, desc]
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+      responses:
+        '200':
+          description: Filtered music tracks and available facets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicTrackPage'
+        '400':
+          $ref: '#/components/responses/Error'
+  /music/enrich:
+    post:
+      operationId: enrichMusicLibrary
+      description: Starts a background job that reprocesses music classification and artwork. An omitted libraryId processes every music library.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                libraryId:
+                  type: string
+      responses:
+        '202':
+          description: Accepted asynchronous music enrichment job.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /music/artists/{artist}:
+    parameters:
+    - name: artist
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      operationId: getMusicArtist
+      parameters:
+      - name: libraryId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Artist and album hierarchy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicArtistDetails'
+        '404':
+          $ref: '#/components/responses/Error'
+  /music/albums/{albumId}:
+    parameters:
+    - name: albumId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      operationId: getMusicAlbum
+      parameters:
+      - name: libraryId
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Album and its ordered audio tracks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MusicAlbumDetails'
+        '404':
+          $ref: '#/components/responses/Error'
+  /media/{id}/metadata/refresh:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    post:
+      operationId: refreshMediaMetadata
+      responses:
+        '200':
+          description: Enriched media item with an official provider title when matched.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaItem'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /notifications:
+    get:
+      operationId: listNotifications
+      description: Synchronizes and returns persistent series episode release notifications. Notifications remain in history after the episode becomes available on the server.
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 50
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      responses:
+        '200':
+          description: Notification history ordered from newest to oldest.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPage'
+        '503':
+          $ref: '#/components/responses/Error'
+  /notifications/read:
+    post:
+      operationId: markAllNotificationsRead
+      description: Marks every current notification as read for this single-profile server installation.
+      responses:
+        '204':
+          description: Notifications were marked as read.
+        '503':
+          $ref: '#/components/responses/Error'
+  /watch/continue:
+    get:
+      operationId: listContinueWatching
+      description: Returns the newest unfinished movie or episode checkpoints. Series are de-duplicated and progress must
+        be between one and 95 percent.
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 5
+      responses:
+        '200':
+          description: Ordered unfinished playback items decorated with persistent watch state.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MediaItem'
+        '503':
+          $ref: '#/components/responses/Error'
+  /media/{id}/watch:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    put:
+      operationId: updateWatchProgress
+      description: Atomically stores a single-profile playback checkpoint outside the media catalog so scans and upgrades
+        preserve it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WatchUpdate'
+      responses:
+        '200':
+          description: Persisted watch state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchState'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /series/{id}:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: getSeriesDetails
+      description: Returns a series parent grouped into seasons and ordered episodes.
+      responses:
+        '200':
+          description: Series hierarchy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesDetails'
+        '404':
+          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/Error'
+  /series/{id}/theme:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: getSeriesTheme
+      description: Serves a cached M4A theme with byte-range support. When the cache is empty, starts one detached server-side preparation job and returns 202 while it continues independently of the browser request.
+      responses:
+        '200':
+          description: Cached series theme audio.
+          headers:
+            Accept-Ranges:
+              schema:
+                type: string
+                const: bytes
+          content:
+            audio/mp4:
+              schema:
+                type: string
+                format: binary
+        '202':
+          description: Theme preparation has started or is already running. Retry after the indicated delay.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                const: 2
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /themes/settings:
+    get:
+      operationId: getThemePlaybackSettings
+      description: Returns the active series-theme playback mode and fixed client playback parameters.
+      responses:
+        '200':
+          description: Series-theme playback configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThemePlaybackConfiguration'
+    put:
+      operationId: updateThemePlaybackSettings
+      description: Updates only the series-theme playback mode while preserving all other server settings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ThemeMusicSettings'
+      responses:
+        '200':
+          description: Saved series-theme playback configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThemePlaybackConfiguration'
+        '400':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /playback/plan:
+    post:
+      operationId: planPlayback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaybackRequest'
+      responses:
+        '200':
+          description: Deterministic playback decision without starting FFmpeg.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackPlan'
+        '404':
+          $ref: '#/components/responses/Error'
+        '501':
+          $ref: '#/components/responses/Error'
+  /playback/sessions:
+    post:
+      operationId: startPlaybackSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaybackRequest'
+      responses:
+        '201':
+          description: Direct or HLS playback session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackSession'
+        '404':
+          $ref: '#/components/responses/Error'
+        '501':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /playback/sessions/{id}/stats:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: getPlaybackRuntimeStats
+      description: Returns lightweight runtime diagnostics for the active or cached playback session.
+      responses:
+        '200':
+          description: Encoder, generated-segment and fallback diagnostics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackRuntimeStats'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /playback/sessions/{id}/{file}:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    - name: file
+      in: path
+      required: true
+      description: HLS playlist, initialization segment or media segment path.
+      schema:
+        type: string
+    get:
+      operationId: getPlaybackFile
+      responses:
+        '200':
+          description: HLS playlist, initialization segment, or media segment.
+        '206':
+          description: Byte-range segment response.
+        '404':
+          $ref: '#/components/responses/Error'
+  /media/{id}/playback-options:
+    parameters:
+    - &id002
+      $ref: '#/components/parameters/Id'
+    get:
+      operationId: getPlaybackOptions
+      description: Returns selectable audio and subtitle tracks. Old catalog entries are reprobed on demand when technical
+        track data is missing.
+      responses:
+        '200':
+          description: Available playback tracks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackOptions'
+        '404': &id001
+          $ref: '#/components/responses/Error'
+        '503': *id001
+  /media/{id}/subtitles/search:
+    parameters:
+    - *id002
+    get:
+      operationId: searchOnlineSubtitles
+      description: Searches OpenSubtitles.com using the media hash, identifiers, title, year and episode data. Requires a
+        configured Consumer API key.
+      parameters:
+      - name: language
+        in: query
+        description: Repeatable preferred subtitle language.
+        schema:
+          type: string
+      - name: languages
+        in: query
+        description: Comma-separated preferred subtitle languages.
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Ranked subtitle results.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SubtitleSearchResult'
+        '404': *id001
+        '503': *id001
+  /media/{id}/subtitles/download:
+    parameters:
+    - *id002
+    post:
+      operationId: downloadOnlineSubtitle
+      description: Downloads a selected OpenSubtitles result into the server data directory and returns a local track.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubtitleDownloadRequest'
+      responses:
+        '201':
+          description: Downloaded subtitle track.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubtitleTrack'
+        '400': *id001
+        '404': *id001
+        '503': *id001
+  /media/{id}/subtitles/{subtitleId}:
+    parameters:
+    - *id002
+    - name: subtitleId
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      operationId: getSubtitleWebVTT
+      description: Converts a text subtitle to cached UTF-8 WebVTT on the server and serves it to the player.
+      responses:
+        '200':
+          description: UTF-8 WebVTT subtitle.
+          content:
+            text/vtt:
+              schema:
+                type: string
+        '404': *id001
+        '415': *id001
+        '503': *id001
+  /playback/sessions/{id}:
+    parameters:
+    - *id002
+    delete:
+      operationId: stopPlaybackSession
+      description: Stops FFmpeg and removes the transient playback session.
+      responses:
+        '204':
+          description: Playback session stopped.
+        '404': *id001
+  /cast/devices:
+    get:
+      operationId: discoverCastDevices
+      description: Discovers DLNA/UPnP MediaRenderer devices reachable from the KoduMedia server on the local network.
+      responses:
+        '200':
+          description: Local-network casting devices ordered by name.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CastDevice'
+        '503':
+          $ref: '#/components/responses/Error'
+  /cast/sessions/active:
+    get:
+      operationId: getActiveCastSession
+      parameters:
+      - name: mediaId
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Most recently started matching DLNA cast session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CastSession'
+        '204':
+          description: No active matching cast session.
+  /cast/sessions:
+    post:
+      operationId: startCastSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CastSessionRequest'
+      responses:
+        '201':
+          description: Server-owned playback loaded on the selected DLNA/UPnP device.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CastSession'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /cast/sessions/{id}:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    get:
+      operationId: getCastSessionStatus
+      responses:
+        '200':
+          description: Live transport, position and volume state reported by the device.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CastSession'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: stopCastSession
+      responses:
+        '204':
+          description: Device playback and its server playback source were stopped.
+        '404':
+          $ref: '#/components/responses/Error'
+  /cast/sessions/{id}/commands:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    post:
+      operationId: commandCastSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CastCommand'
+      responses:
+        '200':
+          description: Updated cast session after the command.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CastSession'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /cast/sources:
+    post:
+      operationId: createBrowserCastSource
+      description: Creates a server playback source for a browser-owned Google Cast receiver session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CastSourceRequest'
+      responses:
+        '201':
+          description: Absolute media source ready for the Google Cast Default Media Receiver.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CastSource'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /cast/sources/{id}:
+    parameters:
+    - $ref: '#/components/parameters/Id'
+    delete:
+      operationId: stopBrowserCastSource
+      responses:
+        '204':
+          description: Browser-owned cast source was stopped and released.
+        '404':
+          $ref: '#/components/responses/Error'
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Error:
+      description: Stable API error envelope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    LibraryKind:
+      type: string
+      enum:
+      - movies
+      - series
+      - music
+      - mixed
+    LibrarySource:
+      type: object
+      required:
+      - id
+      - path
+      - createdAt
+      properties:
+        id:
+          type: string
+        path:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    Library:
+      type: object
+      required:
+      - id
+      - name
+      - kind
+      - system
+      - sources
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/LibraryKind'
+        system:
+          type: boolean
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/LibrarySource'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Job:
+      type: object
+      required:
+      - id
+      - type
+      - status
+      - progress
+      - createdAt
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - succeeded
+          - failed
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        message:
+          type: string
+        error:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+    MediaType:
+      type: string
+      enum:
+      - movie
+      - series
+      - episode
+      - music
+      - unknown
+    MediaTrack:
+      type: object
+      required:
+      - index
+      - kind
+      - codec
+      properties:
+        index:
+          type: integer
+        kind:
+          type: string
+        codec:
+          type: string
+        language:
+          type: string
+        title:
+          type: string
+        channels:
+          type: integer
+        channelLayout:
+          type: string
+        sampleRate:
+          type: integer
+          minimum: 0
+        width:
+          type: integer
+        height:
+          type: integer
+        streamOrdinal:
+          type: integer
+          minimum: 0
+        bitDepth:
+          type: integer
+          minimum: 0
+        pixelFormat:
+          type: string
+        colorPrimaries:
+          type: string
+        colorTransfer:
+          type: string
+        colorSpace:
+          type: string
+        hdrFormat:
+          type: string
+          enum:
+          - hdr10
+          - hdr10plus
+          - hlg
+          - dolby-vision
+        default:
+          type: boolean
+        forced:
+          type: boolean
+        hearingImpaired:
+          type: boolean
+        codecProfile:
+          type: string
+        codecLevel:
+          type: integer
+          minimum: 0
+        frameRate:
+          type: number
+          format: double
+          minimum: 0
+        bitrate:
+          type: integer
+          format: int64
+          minimum: 0
+    PersonCredit:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+        character:
+          type: string
+        role:
+          type: string
+        imageUrl:
+          type: string
+          format: uri
+    MediaFile:
+      type: object
+      required:
+      - relativePath
+      - name
+      - extension
+      - sizeBytes
+      - modifiedAt
+      properties:
+        path:
+          type: string
+          description: Absolute file path on the KoduMedia server.
+        relativePath:
+          type: string
+        name:
+          type: string
+        extension:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        modifiedAt:
+          type: string
+          format: date-time
+    TechnicalMetadata:
+      type: object
+      properties:
+        container:
+          type: string
+        durationMs:
+          type: integer
+          format: int64
+        bitrate:
+          type: integer
+          format: int64
+        width:
+          type: integer
+        height:
+          type: integer
+        videoCodec:
+          type: string
+        audioCodec:
+          type: string
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaTrack'
+        audioChannels:
+          type: integer
+          minimum: 0
+        audioSampleRate:
+          type: integer
+          minimum: 0
+        audioBitDepth:
+          type: integer
+          minimum: 0
+        bitDepth:
+          type: integer
+          minimum: 0
+        pixelFormat:
+          type: string
+        colorPrimaries:
+          type: string
+        colorTransfer:
+          type: string
+        colorSpace:
+          type: string
+        hdrFormat:
+          type: string
+          enum:
+          - hdr10
+          - hdr10plus
+          - hlg
+          - dolby-vision
+        probeVersion:
+          type: integer
+          minimum: 0
+        videoProfile:
+          type: string
+        videoLevel:
+          type: integer
+          minimum: 0
+        frameRate:
+          type: number
+          format: double
+          minimum: 0
+    ExternalIds:
+      type: object
+      properties:
+        imdb:
+          type: string
+        tmdb:
+          type: string
+        tvdb:
+          type: string
+        soundcloud:
+          type: string
+          description: Legacy SoundCloud identifier retained for catalog compatibility.
+        musicBrainzRecording:
+          type: string
+          description: MusicBrainz recording MBID.
+        musicBrainzRelease:
+          type: string
+          description: MusicBrainz release MBID selected for exact artwork matching.
+        musicBrainzReleaseGroup:
+          type: string
+          description: MusicBrainz release-group MBID.
+        acoustId:
+          type: string
+          description: AcoustID result identifier when fingerprint matching was used.
+    EditorialMetadata:
+      type: object
+      properties:
+        summary:
+          type: string
+        tagline:
+          type: string
+        genres:
+          type: array
+          items:
+            type: string
+        cast:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonCredit'
+        directors:
+          type: array
+          items:
+            $ref: '#/components/schemas/PersonCredit'
+        posterUrl:
+          type: string
+          format: uri
+        backdropUrl:
+          type: string
+          format: uri
+        logoUrl:
+          type: string
+          format: uri
+        trailerYoutubeKey:
+          type: string
+          description: YouTube video key for the selected official trailer or teaser.
+        trailerName:
+          type: string
+        trailerCandidates:
+          type: array
+          description: Ranked YouTube trailer and teaser candidates. The client validates embeddability at playback time and falls back automatically.
+          items:
+            $ref: '#/components/schemas/TrailerCandidate'
+        heroAssetsVersion:
+          type: integer
+          minimum: 0
+          description: Version marker used to backfill homepage logo and trailer assets once.
+        imdbRating:
+          type: number
+          minimum: 0
+          maximum: 10
+        imdbVotes:
+          type: integer
+          format: int64
+        metadataSource:
+          type: string
+        officialSeasonCount:
+          type: integer
+          minimum: 0
+        officialEpisodeCount:
+          type: integer
+          minimum: 0
+        latestEpisode:
+          $ref: '#/components/schemas/EpisodeReleaseInfo'
+        updatedAt:
+          type: string
+          format: date-time
+    TrailerCandidate:
+      type: object
+      required:
+        - youtubeKey
+      properties:
+        youtubeKey:
+          type: string
+          description: YouTube video key.
+        name:
+          type: string
+    EpisodeReleaseInfo:
+      type: object
+      required:
+      - season
+      - episode
+      properties:
+        season:
+          type: integer
+          minimum: 0
+        episode:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+        releaseDate:
+          type: string
+          format: date-time
+    WatchState:
+      type: object
+      required:
+      - mediaId
+      - mediaType
+      - positionMs
+      - durationMs
+      - progress
+      - completed
+      - lastWatchedAt
+      - updatedAt
+      properties:
+        mediaId:
+          type: string
+        seriesId:
+          type: string
+        mediaType:
+          $ref: '#/components/schemas/MediaType'
+        season:
+          type: integer
+          minimum: 0
+        episode:
+          type: integer
+          minimum: 0
+        positionMs:
+          type: integer
+          format: int64
+          minimum: 0
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+        progress:
+          type: number
+          minimum: 0
+          maximum: 1
+        completed:
+          type: boolean
+        lastWatchedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WatchUpdate:
+      type: object
+      required:
+      - positionMs
+      - durationMs
+      properties:
+        positionMs:
+          type: integer
+          format: int64
+          minimum: 0
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+        completed:
+          type: boolean
+          default: false
+    MediaItem:
+      type: object
+      required:
+      - id
+      - libraryId
+      - type
+      - title
+      - sortTitle
+      - file
+      - technical
+      - externalIds
+      - metadata
+      - addedAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+        libraryId:
+          type: string
+        seriesId:
+          type: string
+        type:
+          $ref: '#/components/schemas/MediaType'
+        title:
+          type: string
+        sortTitle:
+          type: string
+        year:
+          type: integer
+        releaseDate:
+          type: string
+          format: date-time
+        season:
+          type: integer
+        episode:
+          type: integer
+        episodeTitle:
+          type: string
+        seriesTitle:
+          type: string
+        seasonCount:
+          type: integer
+          minimum: 0
+        episodeCount:
+          type: integer
+          minimum: 0
+        artist:
+          type: string
+        album:
+          type: string
+        trackNumber:
+          type: integer
+        discNumber:
+          type: integer
+        musicClassification:
+          $ref: '#/components/schemas/MusicClassification'
+        file:
+          $ref: '#/components/schemas/MediaFile'
+        technical:
+          $ref: '#/components/schemas/TechnicalMetadata'
+        externalIds:
+          $ref: '#/components/schemas/ExternalIds'
+        metadata:
+          $ref: '#/components/schemas/EditorialMetadata'
+        addedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        watch:
+          $ref: '#/components/schemas/WatchState'
+    PostPlayRecommendation:
+      type: object
+      required:
+      - item
+      properties:
+        item:
+          $ref: '#/components/schemas/MediaItem'
+        playTarget:
+          $ref: '#/components/schemas/MediaItem'
+        sharedGenres:
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+    PostPlay:
+      type: object
+      required:
+      - recommendations
+      properties:
+        nextEpisode:
+          $ref: '#/components/schemas/MediaItem'
+        recommendations:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/PostPlayRecommendation'
+    MediaPage:
+      type: object
+      required:
+      - items
+      - total
+      - limit
+      - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaItem'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+    SeasonGroup:
+      type: object
+      required:
+      - number
+      - title
+      - episodeCount
+      - episodes
+      properties:
+        number:
+          type: integer
+          minimum: 0
+        title:
+          type: string
+        episodeCount:
+          type: integer
+          minimum: 0
+        episodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaItem'
+    MusicClassification:
+      type: object
+      properties:
+        genres:
+          type: array
+          items:
+            type: string
+        styles:
+          type: array
+          items:
+            type: string
+        moods:
+          type: array
+          items:
+            type: string
+        source:
+          type: string
+          enum: [embedded, sidecar, musicbrainz, mixed]
+        genreSource:
+          type: string
+          enum: [embedded, sidecar, musicbrainz]
+        styleSource:
+          type: string
+          enum: [embedded, sidecar, musicbrainz]
+        moodSource:
+          type: string
+          enum: [embedded, sidecar, musicbrainz]
+        confidence:
+          type: string
+          enum: [tagged, verified, matched, fingerprint]
+        sourceUrl:
+          type: string
+          format: uri
+          description: Public MusicBrainz recording URL for the matched metadata.
+    MusicFacet:
+      type: object
+      required: [value, count]
+      properties:
+        value:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+    MusicTrackFacets:
+      type: object
+      required: [artists, albums, genres, styles, years, codecs, lossless, hiRes, unclassified]
+      properties:
+        artists:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicFacet'
+        albums:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicFacet'
+        genres:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicFacet'
+        styles:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicFacet'
+        years:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicFacet'
+        codecs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicFacet'
+        lossless:
+          type: integer
+          minimum: 0
+        hiRes:
+          type: integer
+          minimum: 0
+        unclassified:
+          type: integer
+          minimum: 0
+    MusicTrackPage:
+      type: object
+      required: [items, total, limit, offset, facets]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaItem'
+        total:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+        offset:
+          type: integer
+          minimum: 0
+        facets:
+          $ref: '#/components/schemas/MusicTrackFacets'
+    MusicArtist:
+      type: object
+      required:
+      - id
+      - name
+      - albumCount
+      - trackCount
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        albumCount:
+          type: integer
+          minimum: 0
+        trackCount:
+          type: integer
+          minimum: 0
+        artworkUrl:
+          type: string
+    MusicAlbum:
+      type: object
+      required:
+      - id
+      - artist
+      - title
+      - trackCount
+      properties:
+        id:
+          type: string
+        artist:
+          type: string
+        title:
+          type: string
+        year:
+          type: integer
+        trackCount:
+          type: integer
+          minimum: 0
+        artworkUrl:
+          type: string
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaItem'
+    MusicLanding:
+      type: object
+      required:
+      - totalTracks
+      - recentlyPlayed
+      - recentlyAdded
+      - artists
+      - albums
+      properties:
+        totalTracks:
+          type: integer
+          minimum: 0
+        recentlyPlayed:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaItem'
+        recentlyAdded:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaItem'
+        artists:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicArtist'
+        albums:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicAlbum'
+    MusicArtistDetails:
+      type: object
+      required:
+      - artist
+      - albums
+      properties:
+        artist:
+          $ref: '#/components/schemas/MusicArtist'
+        albums:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicAlbum'
+    MusicAlbumDetails:
+      type: object
+      required:
+      - album
+      properties:
+        album:
+          $ref: '#/components/schemas/MusicAlbum'
+    Notification:
+      type: object
+      required:
+      - id
+      - kind
+      - seriesId
+      - seriesTitle
+      - season
+      - episode
+      - createdAt
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          const: series_episode_released
+        seriesId:
+          type: string
+        seriesTitle:
+          type: string
+        season:
+          type: integer
+          minimum: 0
+        episode:
+          type: integer
+          minimum: 0
+        episodeTitle:
+          type: string
+        releaseDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+    NotificationPage:
+      type: object
+      required:
+      - items
+      - total
+      - unread
+      - limit
+      - offset
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        total:
+          type: integer
+          minimum: 0
+        unread:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+        offset:
+          type: integer
+          minimum: 0
+    SeriesAvailability:
+      type: object
+      required:
+      - releasedSeasonCount
+      - releasedEpisodeCount
+      - availableSeasonCount
+      - availableEpisodeCount
+      - newEpisodeAvailable
+      properties:
+        releasedSeasonCount:
+          type: integer
+          minimum: 0
+        releasedEpisodeCount:
+          type: integer
+          minimum: 0
+        availableSeasonCount:
+          type: integer
+          minimum: 0
+        availableEpisodeCount:
+          type: integer
+          minimum: 0
+        latestReleasedEpisode:
+          $ref: '#/components/schemas/EpisodeReleaseInfo'
+        latestAvailableSeason:
+          type: integer
+          minimum: 0
+        latestAvailableEpisode:
+          type: integer
+          minimum: 0
+        latestAvailableDate:
+          type: string
+          format: date-time
+        newEpisodeAvailable:
+          type: boolean
+    SeriesDetails:
+      type: object
+      required:
+      - series
+      - seasons
+      - availability
+      properties:
+        series:
+          $ref: '#/components/schemas/MediaItem'
+        seasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeasonGroup'
+        playTarget:
+          $ref: '#/components/schemas/MediaItem'
+        availability:
+          $ref: '#/components/schemas/SeriesAvailability'
+    FileSystemEntry:
+      type: object
+      required:
+      - name
+      - path
+      - directory
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        directory:
+          type: boolean
+        sizeBytes:
+          type: integer
+          format: int64
+    DirectoryListing:
+      type: object
+      required:
+      - roots
+      - entries
+      properties:
+        currentPath:
+          type: string
+        parentPath:
+          type: string
+        roots:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileSystemEntry'
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileSystemEntry'
+        truncated:
+          type: boolean
+          default: false
+          description: True when the fallback browser capped a large directory listing.
+    FilePickerRequest:
+      type: object
+      required:
+      - mode
+      - title
+      properties:
+        mode:
+          type: string
+          enum:
+          - directory
+          - file
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        initialPath:
+          type: string
+        extensions:
+          type: array
+          maxItems: 16
+          items:
+            type: string
+            example: .exe
+    FilePickerResult:
+      type: object
+      required:
+      - path
+      properties:
+        path:
+          type: string
+          description: Absolute path selected on the Windows server.
+    ComponentStatus:
+      type: object
+      required:
+      - available
+      properties:
+        available:
+          type: boolean
+        refreshing:
+          type: boolean
+        version:
+          type: string
+        message:
+          type: string
+        lastCheckedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+    PublicMetadataSettings:
+      type: object
+      required:
+      - tmdbTokenConfigured
+      - language
+      - imdbRatingsSource
+      properties:
+        tmdbTokenConfigured:
+          type: boolean
+        tmdbTokenHint:
+          type: string
+          description: Masked suffix only; the secret token is never returned.
+        language:
+          type: string
+          example: en-US
+        imdbRatingsSource:
+          type: string
+          example: https://datasets.imdbws.com/title.ratings.tsv.gz
+          description: Absolute HTTPS URL or an absolute local .tsv/.tsv.gz path on the server.
+    PublicMusicSettings:
+      type: object
+      required:
+      - metadataEnabled
+      - shazamEnabled
+      - fingerprintEnabled
+      - catalogFallbackEnabled
+      - audioAnalysisEnabled
+      - generatedArtworkEnabled
+      - acoustIdApiKeyConfigured
+      properties:
+        metadataEnabled:
+          type: boolean
+        shazamEnabled:
+          type: boolean
+          description: Enables first-priority audio fingerprint recognition through the unofficial Shazam endpoint. No API key is required.
+        fingerprintEnabled:
+          type: boolean
+        catalogFallbackEnabled:
+          type: boolean
+          description: Enables the broader catalog fallback after MusicBrainz.
+        audioAnalysisEnabled:
+          type: boolean
+          description: Enables cached local FFmpeg-based style estimation during deep enrichment.
+        generatedArtworkEnabled:
+          type: boolean
+          description: Enables a neutral generated SVG card when no artwork source succeeds.
+        acoustIdApiKeyConfigured:
+          type: boolean
+        acoustIdApiKeyHint:
+          type: string
+          description: Masked suffix only; the full AcoustID API key is never returned.
+    MusicSettingsUpdate:
+      type: object
+      required:
+      - metadataEnabled
+      - shazamEnabled
+      - fingerprintEnabled
+      - catalogFallbackEnabled
+      - audioAnalysisEnabled
+      - generatedArtworkEnabled
+      properties:
+        metadataEnabled:
+          type: boolean
+        shazamEnabled:
+          type: boolean
+          description: Enables first-priority Shazam fingerprint recognition without an API key.
+        fingerprintEnabled:
+          type: boolean
+        catalogFallbackEnabled:
+          type: boolean
+        audioAnalysisEnabled:
+          type: boolean
+        generatedArtworkEnabled:
+          type: boolean
+        acoustIdApiKey:
+          type: string
+          description: Optional free AcoustID application key. Omit or send an empty value to retain the existing key.
+        clearAcoustIdApiKey:
+          type: boolean
+          default: false
+    PublicServerSettings:
+      type: object
+      required:
+      - ffmpegPath
+      - ffprobePath
+      - metadata
+      - music
+      - themeMusic
+      - subtitles
+      - quality
+      properties:
+        ffmpegPath:
+          type: string
+        ffprobePath:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/PublicMetadataSettings'
+        music:
+          $ref: '#/components/schemas/PublicMusicSettings'
+        themeMusic:
+          $ref: '#/components/schemas/ThemeMusicSettings'
+        subtitles:
+          $ref: '#/components/schemas/PublicSubtitleSettings'
+        quality:
+          $ref: '#/components/schemas/QualitySettings'
+    ThemeMusicSettings:
+      type: object
+      required:
+      - seriesPlayback
+      properties:
+        seriesPlayback:
+          type: string
+          enum:
+          - always
+          - first-open
+          - off
+          description: Always play, play once per browser session for each series, or disable series theme music.
+    ThemePlaybackConfiguration:
+      type: object
+      required:
+      - seriesPlayback
+      - volume
+      - fadeInMs
+      - fadeOutMs
+      properties:
+        seriesPlayback:
+          type: string
+          enum:
+          - always
+          - first-open
+          - off
+        volume:
+          type: number
+          const: 0.15
+        fadeInMs:
+          type: integer
+          const: 2000
+        fadeOutMs:
+          type: integer
+          const: 2000
+    MetadataStatus:
+      type: object
+      required:
+      - tmdb
+      - imdb
+      properties:
+        tmdb:
+          $ref: '#/components/schemas/ComponentStatus'
+        imdb:
+          $ref: '#/components/schemas/ComponentStatus'
+    SystemStatus:
+      type: object
+      required:
+      - ffmpeg
+      - ffprobe
+      - metadata
+      properties:
+        ffmpeg:
+          $ref: '#/components/schemas/ComponentStatus'
+        ffprobe:
+          $ref: '#/components/schemas/ComponentStatus'
+        metadata:
+          $ref: '#/components/schemas/MetadataStatus'
+    SystemConfiguration:
+      type: object
+      required:
+      - version
+      - settings
+      - status
+      properties:
+        version:
+          type: string
+        settings:
+          $ref: '#/components/schemas/PublicServerSettings'
+        status:
+          $ref: '#/components/schemas/SystemStatus'
+    StorageCategory:
+      type: object
+      required:
+      - id
+      - sizeBytes
+      properties:
+        id:
+          type: string
+          enum:
+          - updates
+          - optimized-media
+          - transcodes
+          - music-artwork
+          - music-metadata
+          - themes
+          - subtitles-cache
+          - subtitles-downloaded
+          - logs
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        limitBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        reclaimableBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        clearable:
+          type: boolean
+        retentionCount:
+          type: integer
+          minimum: 0
+    StorageReport:
+      type: object
+      required:
+      - dataDirectory
+      - dataSizeBytes
+      - diskFreeBytes
+      - diskTotalBytes
+      - requiredReserveBytes
+      - categories
+      - generatedAt
+      properties:
+        dataDirectory:
+          type: string
+        dataSizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        diskFreeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        diskTotalBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        requiredReserveBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/StorageCategory'
+        generatedAt:
+          type: string
+          format: date-time
+    StorageCleanupRequest:
+      type: object
+      required:
+      - action
+      properties:
+        action:
+          type: string
+          enum:
+          - cleanup
+          - clear-optimized
+    StorageCleanupResult:
+      type: object
+      required:
+      - freedBytes
+      - report
+      properties:
+        freedBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        report:
+          $ref: '#/components/schemas/StorageReport'
+    MetadataSettingsUpdate:
+      type: object
+      required:
+      - language
+      - imdbRatingsSource
+      properties:
+        tmdbToken:
+          type: string
+          description: Omit or send an empty value to retain the existing token.
+        clearTmdbToken:
+          type: boolean
+          default: false
+          description: Removes the stored token when true.
+        language:
+          type: string
+          example: en-US
+        imdbRatingsSource:
+          type: string
+          example: https://datasets.imdbws.com/title.ratings.tsv.gz
+          description: Absolute HTTPS URL or an absolute local .tsv/.tsv.gz path on the server.
+    SystemSettingsUpdate:
+      type: object
+      required:
+      - ffmpegPath
+      - ffprobePath
+      - metadata
+      - music
+      - themeMusic
+      - subtitles
+      - quality
+      properties:
+        ffmpegPath:
+          type: string
+          minLength: 1
+        ffprobePath:
+          type: string
+          minLength: 1
+        metadata:
+          $ref: '#/components/schemas/MetadataSettingsUpdate'
+        music:
+          $ref: '#/components/schemas/MusicSettingsUpdate'
+        themeMusic:
+          $ref: '#/components/schemas/ThemeMusicSettings'
+        subtitles:
+          $ref: '#/components/schemas/SubtitleSettingsUpdate'
+        quality:
+          $ref: '#/components/schemas/QualitySettings'
+    ClientCapabilities:
+      type: object
+      required:
+      - supportedMimes
+      - videoCodecs
+      - audioCodecs
+      - subtitleFormats
+      - supportsMse
+      - supportsHls
+      properties:
+        clientName:
+          type: string
+        clientVersion:
+          type: string
+        supportedMimes:
+          type: array
+          items:
+            type: string
+        videoCodecs:
+          type: array
+          items:
+            type: string
+        audioCodecs:
+          type: array
+          items:
+            type: string
+        subtitleFormats:
+          type: array
+          items:
+            type: string
+        supportsMse:
+          type: boolean
+        supportsHls:
+          type: boolean
+        maximumWidth:
+          type: integer
+          minimum: 0
+        maximumHeight:
+          type: integer
+          minimum: 0
+        maximumBitrate:
+          type: integer
+          format: int64
+          minimum: 0
+        maximumAudioChannels:
+          type: integer
+          minimum: 1
+        hdrFormats:
+          type: array
+          items:
+            type: string
+            enum:
+            - hdr10
+            - hdr10plus
+            - hlg
+            - dolby-vision
+        supportsPip:
+          type: boolean
+        decodeCapabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/VideoDecodeCapability'
+    PlaybackRequest:
+      type: object
+      required:
+      - mediaId
+      - capabilities
+      properties:
+        mediaId:
+          type: string
+        capabilities:
+          $ref: '#/components/schemas/ClientCapabilities'
+        preferences:
+          $ref: '#/components/schemas/PlaybackPreferences'
+    PlaybackPlan:
+      type: object
+      required:
+      - mode
+      - reason
+      - container
+      properties:
+        mode:
+          type: string
+          enum:
+          - direct
+          - remux
+          - transcode
+        reason:
+          type: string
+        container:
+          type: string
+        videoCodec:
+          type: string
+        audioCodec:
+          type: string
+        videoAction:
+          type: string
+          enum:
+          - copy
+          - transcode
+          - drop
+          - external
+          - burn
+        audioAction:
+          type: string
+          enum:
+          - copy
+          - transcode
+          - drop
+          - external
+          - burn
+        subtitleAction:
+          type: string
+          enum:
+          - copy
+          - transcode
+          - drop
+          - external
+          - burn
+        directUrl:
+          type: string
+        playlistUrl:
+          type: string
+        transcodeProfile:
+          type: string
+        selectedAudioTrackIndex:
+          type: integer
+          minimum: 0
+        selectedSubtitleId:
+          type: string
+        toneMap:
+          type: boolean
+        preserveHdr:
+          type: boolean
+        sourceHdrFormat:
+          type: string
+        targetWidth:
+          type: integer
+          minimum: 0
+        targetHeight:
+          type: integer
+          minimum: 0
+        startPositionMs:
+          type: integer
+          format: int64
+          minimum: 0
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+        qualityProfile:
+          type: string
+          enum:
+          - original
+          - maximum
+          - balanced
+          - data-saver
+        videoEncoder:
+          type: string
+          description: Selected encoder family such as software, nvenc, qsv or amf.
+        videoDecoder:
+          type: string
+          description: Selected hardware decoder path, for example cuda. Empty means software decode.
+        encoderFallbackReason:
+          type: string
+          description: Human-readable reason for hardware decoder or encoder fallback.
+        videoPreset:
+          type: string
+        videoCrf:
+          type: integer
+          minimum: 0
+        pixelFormat:
+          type: string
+        cachePolicy:
+          type: string
+          enum:
+          - 'off'
+          - watched
+          - complete
+          - finish
+        cacheMaxBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        gracePeriodSeconds:
+          type: integer
+          minimum: 0
+        vmafEnabled:
+          type: boolean
+        vmafTarget:
+          type: integer
+          minimum: 0
+          maximum: 100
+        vmafSampleSeconds:
+          type: integer
+          minimum: 0
+        encoderFallback:
+          type: boolean
+        allowSoftwareAv1:
+          type: boolean
+        recoveryLevel:
+          type: integer
+          minimum: 0
+          maximum: 3
+          description: 'Automatic stability fallback level: 0 primary, 1 stable 1080p, 2 data-saving 720p, 3 emergency 480p.'
+        startupBufferSeconds:
+          type: integer
+          minimum: 0
+        rebufferBufferSeconds:
+          type: integer
+          minimum: 0
+        desiredBufferSeconds:
+          type: integer
+          minimum: 0
+        lowBufferSeconds:
+          type: integer
+          minimum: 0
+        readRate:
+          type: number
+          minimum: 0
+        initialBurstSeconds:
+          type: integer
+          minimum: 0
+        minimumEncoderSpeed:
+          type: number
+          minimum: 0
+        maxVideoBitrate:
+          type: integer
+          format: int64
+          minimum: 0
+        rateControlBuffer:
+          type: integer
+          format: int64
+          minimum: 0
+        cacheHit:
+          type: boolean
+        initialPositionMs:
+          type: integer
+          format: int64
+          minimum: 0
+    PlaybackRuntimeStats:
+      type: object
+      required:
+      - sessionId
+      - state
+      - producerAlive
+      - updatedAt
+      properties:
+        sessionId:
+          type: string
+        state:
+          type: string
+          enum:
+          - starting
+          - running
+          - completed
+          - failed
+          - cached
+        producerAlive:
+          type: boolean
+        encoderSpeed:
+          type: number
+          minimum: 0
+        averageEncoderSpeed:
+          type: number
+          minimum: 0
+        outputPositionMs:
+          type: integer
+          format: int64
+          minimum: 0
+        generatedDurationMs:
+          type: integer
+          format: int64
+          minimum: 0
+        segmentCount:
+          type: integer
+          minimum: 0
+        estimatedBitrate:
+          type: integer
+          format: int64
+          minimum: 0
+        minimumEncoderSpeed:
+          type: number
+          minimum: 0
+        fallbackRecommended:
+          type: boolean
+        fallbackReason:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+    PlaybackSession:
+      type: object
+      required:
+      - mediaId
+      - plan
+      properties:
+        id:
+          type: string
+        mediaId:
+          type: string
+        plan:
+          $ref: '#/components/schemas/PlaybackPlan'
+        playlistUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastAccessAt:
+          type: string
+          format: date-time
+    CastDevice:
+      type: object
+      required:
+      - id
+      - name
+      - protocol
+      - canSeek
+      - canSetVolume
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        manufacturer:
+          type: string
+        model:
+          type: string
+        protocol:
+          type: string
+          enum:
+          - dlna
+          - google-cast
+        canSeek:
+          type: boolean
+        canSetVolume:
+          type: boolean
+    CastSource:
+      type: object
+      required:
+      - id
+      - mediaId
+      - url
+      - contentType
+      - plan
+      - createdAt
+      properties:
+        id:
+          type: string
+        mediaId:
+          type: string
+        url:
+          type: string
+          format: uri
+        contentType:
+          type: string
+        basePositionMs:
+          type: integer
+          format: int64
+          minimum: 0
+        startPositionMs:
+          type: integer
+          format: int64
+          minimum: 0
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+        plan:
+          $ref: '#/components/schemas/PlaybackPlan'
+        createdAt:
+          type: string
+          format: date-time
+    CastSession:
+      type: object
+      required:
+      - id
+      - device
+      - mediaId
+      - sourceId
+      - state
+      - startedAt
+      - lastUpdateAt
+      properties:
+        id:
+          type: string
+        device:
+          $ref: '#/components/schemas/CastDevice'
+        mediaId:
+          type: string
+        sourceId:
+          type: string
+        state:
+          type: string
+          enum:
+          - connecting
+          - playing
+          - paused
+          - stopped
+          - buffering
+          - unknown
+        positionMs:
+          type: integer
+          format: int64
+          minimum: 0
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+        volume:
+          type: number
+          minimum: 0
+          maximum: 1
+        muted:
+          type: boolean
+        startedAt:
+          type: string
+          format: date-time
+        lastUpdateAt:
+          type: string
+          format: date-time
+    CastSessionRequest:
+      type: object
+      required:
+      - deviceId
+      - mediaId
+      properties:
+        deviceId:
+          type: string
+        mediaId:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type: string
+        preferences:
+          $ref: '#/components/schemas/PlaybackPreferences'
+    CastSourceRequest:
+      type: object
+      required:
+      - mediaId
+      properties:
+        mediaId:
+          type: string
+        preferences:
+          $ref: '#/components/schemas/PlaybackPreferences'
+    CastCommand:
+      type: object
+      required:
+      - action
+      properties:
+        action:
+          type: string
+          enum:
+          - play
+          - pause
+          - stop
+          - seek
+          - set-volume
+          - set-muted
+        positionMs:
+          type: integer
+          format: int64
+          minimum: 0
+        volume:
+          type: number
+          minimum: 0
+          maximum: 1
+        muted:
+          type: boolean
+    SystemInfo:
+      type: object
+      required:
+      - version
+      - ffmpegAvailable
+      - ffprobeAvailable
+      - metadataEnabled
+      properties:
+        version:
+          type: string
+        ffmpegAvailable:
+          type: boolean
+        ffprobeAvailable:
+          type: boolean
+        metadataEnabled:
+          type: boolean
+    ErrorResponse:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    UpdateState:
+      type: string
+      enum:
+      - idle
+      - preparing
+      - installing
+      - restarting
+      - succeeded
+      - failed
+    UpdateStatus:
+      type: object
+      required:
+      - state
+      - currentVersion
+      - localOnly
+      properties:
+        state:
+          $ref: '#/components/schemas/UpdateState'
+        currentVersion:
+          type: string
+        targetVersion:
+          type: string
+        packageName:
+          type: string
+        message:
+          type: string
+        error:
+          type: string
+        localOnly:
+          type: boolean
+          const: true
+        startedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        rollbackApplied:
+          type: boolean
+    PublicSubtitleSettings:
+      type: object
+      required:
+      - preferredLanguages
+      - openSubtitlesApiKeyConfigured
+      - openSubtitlesUsernameConfigured
+      - openSubtitlesPasswordConfigured
+      properties:
+        preferredLanguages:
+          type: array
+          items:
+            type: string
+        openSubtitlesApiKeyConfigured:
+          type: boolean
+        openSubtitlesApiKeyHint:
+          type: string
+          description: Masked suffix only.
+        openSubtitlesUsernameConfigured:
+          type: boolean
+        openSubtitlesUsernameHint:
+          type: string
+          description: Masked username hint only.
+        openSubtitlesPasswordConfigured:
+          type: boolean
+    SubtitleSettingsUpdate:
+      type: object
+      required:
+      - preferredLanguages
+      properties:
+        preferredLanguages:
+          type: array
+          items:
+            type: string
+          example:
+          - et
+          - en
+        openSubtitlesApiKey:
+          type: string
+          description: Omit or send an empty value to retain the stored key.
+        clearOpenSubtitlesApiKey:
+          type: boolean
+          default: false
+        openSubtitlesUsername:
+          type: string
+          description: Omit or send an empty value to retain the stored username.
+        clearOpenSubtitlesUsername:
+          type: boolean
+          default: false
+        openSubtitlesPassword:
+          type: string
+          format: password
+          description: Omit or send an empty value to retain the stored password.
+        clearOpenSubtitlesPassword:
+          type: boolean
+          default: false
+    PlaybackPreferences:
+      type: object
+      properties:
+        forceTranscode:
+          type: boolean
+          default: false
+        forceSubtitleBurn:
+          type: boolean
+          default: false
+        startPositionMs:
+          type: integer
+          format: int64
+          minimum: 0
+        audioTrackIndex:
+          type: integer
+          minimum: 0
+        subtitleId:
+          type: string
+        hdrMode:
+          type: string
+          enum:
+          - auto
+          - hdr
+          - sdr
+          default: auto
+        recoveryLevel:
+          type: integer
+          minimum: 0
+          maximum: 3
+          default: 0
+    SubtitleTrack:
+      type: object
+      required:
+      - id
+      - source
+      - kind
+      - format
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+          enum:
+          - embedded
+          - external
+          - downloaded
+        kind:
+          type: string
+          enum:
+          - text
+          - image
+        format:
+          type: string
+        language:
+          type: string
+        title:
+          type: string
+        streamIndex:
+          type: integer
+          minimum: 0
+        streamOrdinal:
+          type: integer
+          minimum: 0
+        default:
+          type: boolean
+        forced:
+          type: boolean
+        hearingImpaired:
+          type: boolean
+        requiresBurnIn:
+          type: boolean
+        url:
+          type: string
+    PlaybackOptions:
+      type: object
+      required:
+      - mediaId
+      - audioTracks
+      - subtitles
+      properties:
+        mediaId:
+          type: string
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+        audioTracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaTrack'
+        subtitles:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubtitleTrack'
+    SubtitleSearchResult:
+      type: object
+      required:
+      - id
+      - fileId
+      - fileName
+      - language
+      properties:
+        id:
+          type: string
+        fileId:
+          type: integer
+          format: int64
+        fileName:
+          type: string
+        language:
+          type: string
+        release:
+          type: string
+        hearingImpaired:
+          type: boolean
+        trusted:
+          type: boolean
+        rating:
+          type: number
+        downloads:
+          type: integer
+        matchType:
+          type: string
+    SubtitleDownloadRequest:
+      type: object
+      required:
+      - fileId
+      - fileName
+      - language
+      properties:
+        fileId:
+          type: integer
+          format: int64
+        fileName:
+          type: string
+        language:
+          type: string
+    QualitySettings:
+      type: object
+      required:
+      - profile
+      - preferredCodec
+      - hardwarePreference
+      - cachePolicy
+      - cacheMaxGb
+      - cacheFreeReserveGb
+      - cacheFreeReservePercent
+      - gracePeriodSeconds
+      - vmafEnabled
+      - vmafTarget
+      - vmafSampleSeconds
+      properties:
+        profile:
+          type: string
+          enum:
+          - original
+          - maximum
+          - balanced
+          - data-saver
+        preferredCodec:
+          type: string
+          enum:
+          - auto
+          - h264
+          - hevc
+          - av1
+        hardwarePreference:
+          type: string
+          enum:
+          - auto
+          - software
+          - qsv
+          - nvenc
+          - amf
+        cachePolicy:
+          type: string
+          enum:
+          - 'off'
+          - watched
+          - complete
+          - finish
+        cacheMaxGb:
+          type: integer
+          minimum: 1
+          maximum: 4096
+        cacheFreeReserveGb:
+          type: integer
+          minimum: 1
+          maximum: 1024
+          description: Absolute free-space reserve protected from optimized media cache growth.
+        cacheFreeReservePercent:
+          type: integer
+          minimum: 1
+          maximum: 50
+          description: Percentage free-space reserve. The stricter of this value and cacheFreeReserveGb is used.
+        gracePeriodSeconds:
+          type: integer
+          minimum: 0
+          maximum: 300
+        vmafEnabled:
+          type: boolean
+        vmafTarget:
+          type: integer
+          minimum: 70
+          maximum: 100
+        vmafSampleSeconds:
+          type: integer
+          minimum: 4
+          maximum: 60
+    VideoDecodeCapability:
+      type: object
+      required:
+      - codec
+      - supported
+      - smooth
+      - powerEfficient
+      properties:
+        codec:
+          type: string
+        codecProfile:
+          type: string
+        codecLevel:
+          type: integer
+          minimum: 0
+        source:
+          type: boolean
+        contentType:
+          type: string
+        width:
+          type: integer
+          minimum: 0
+        height:
+          type: integer
+          minimum: 0
+        frameRate:
+          type: number
+          format: double
+          minimum: 0
+        bitrate:
+          type: integer
+          format: int64
+          minimum: 0
+        bitDepth:
+          type: integer
+          minimum: 0
+        hdrFormat:
+          type: string
+          enum:
+          - hdr10
+          - hdr10plus
+          - hlg
+          - dolby-vision
+        supported:
+          type: boolean
+        smooth:
+          type: boolean
+        powerEfficient:
+          type: boolean

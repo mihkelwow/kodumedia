@@ -1,0 +1,67 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+secrets*.json
+
+# Runtime data, personal media and caches
+/data/
+/.smoke/
+/.dev/
+/media/
+/movies/
+/series/
+/tv/
+/music/
+/downloads/
+*.log
+*.db
+*.db-shm
+*.db-wal
+
+# Dependencies and generated web output
+apps/web/node_modules/
+apps/web/.vite/
+apps/web/dist/
+apps/server/internal/webui/dist/*
+!apps/server/internal/webui/dist/.gitkeep
+*.tsbuildinfo
+
+# Build output and bundled executable tools
+/dist/
+/release/
+/artifacts/
+tools/ffmpeg/bin/
+tools/yt-dlp/bin/
+*.exe
+*.dll
+*.msi
+*.msix
+*.appx
+*.zip
+*.7z
+*.rar
+
+# Test coverage and temporary files
+coverage/
+*.cover
+*.out
+*.tmp
+*.temp
+*.bak
+
+# Windows, macOS and IDE files
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vs/
+.idea/
+.vscode/
