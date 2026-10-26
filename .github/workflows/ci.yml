@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: apps/server/go.mod
-          cache-dependency-path: apps/server/go.sum
+          cache: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7

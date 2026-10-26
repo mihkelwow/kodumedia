@@ -38,7 +38,7 @@ function Invoke-CheckedCommand {
     try {
         & $FilePath @Arguments
         if ($LASTEXITCODE -ne 0) {
-            throw "Käsk ebaõnnestus väljumiskoodiga $LASTEXITCODE: $FilePath $($Arguments -join ' ')"
+            throw "Käsk ebaõnnestus väljumiskoodiga ${LASTEXITCODE}: $FilePath $($Arguments -join ' ')"
         }
     }
     finally {
