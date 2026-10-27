@@ -1,9 +1,17 @@
-KoduMedia 0.8.57 - Windows x64
+KoduMedia 0.8.58 - Windows x64
 
 KÄIVITAMINE
 1. Paki ZIP täielikult lahti kohalikule kettale.
 2. Käivita start-kodumedia.cmd.
 3. Ava brauseris http://127.0.0.1:8096.
+
+0.8.58 SUUREM PUHVER JA PÜSIV ENCODER'I VARU
+- Tavaline 1080p transcode alustab 24 sekundi varuga ja hoiab eesmärgina 90 sekundit.
+- 4K/HDR transcode kasutab 30 sekundi stardivaru ja kuni 120 sekundi eesmärki.
+- Seek'i järel oodatakse enne jätkamist taas täielik turvapuhver.
+- NVIDIA NVENC-i eelistatakse automaatselt QSV-le ja AMD AMF-ile, kui see töötab.
+- Encoder'i diagnostika näitab nüüd viimast tegelikku tootmiskiirust, mitte kogu
+  sessiooni algusest kogunenud eksitavat keskmist.
 
 0.8.57 PLAYERI KÄIVITUMISE HOTFIX
 - Filmid ja seriaalid ei jää enam brauseris lõputult 14–20 sekundi puhvrit ootama.

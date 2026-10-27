@@ -103,14 +103,11 @@ func encoderFamilies(preference string, source domain.TechnicalMetadata) []strin
 	case "software":
 		return nil
 	default:
-		// Discrete NVIDIA hardware is usually the strongest real-time option for
-		// 4K/HDR workloads. For ordinary SDR content, prefer the lower-power
-		// integrated QSV path first when it is available. Missing families are
-		// skipped by capability checks below.
-		if source.HDRFormat != "" || source.Width > 1920 || source.Height > 1080 {
-			return []string{"nvenc", "qsv", "amf"}
-		}
-		return []string{"qsv", "nvenc", "amf"}
+		// Prefer a discrete NVIDIA encoder whenever one is available. The old
+		// SDR order selected Intel QSV before an RTX-class GPU, leaving the
+		// stronger real-time encoder idle exactly when a long-lived buffer needed
+		// sustained headroom. Missing families are skipped by capability checks.
+		return []string{"nvenc", "qsv", "amf"}
 	}
 }
 
@@ -467,42 +464,43 @@ func nextStabilityPlan(plan domain.PlaybackPlan, source domain.TechnicalMetadata
 		plan.QualityProfile = "balanced"
 		plan.VideoPreset = "veryfast"
 		plan.VideoCRF = 19
-		plan.StartupBufferSeconds = 14
-		plan.RebufferBufferSeconds = 22
-		plan.DesiredBufferSeconds = 40
-		plan.LowBufferSeconds = 12
-		plan.ReadRate = 1.40
-		plan.InitialBurstSeconds = 26
+		plan.StartupBufferSeconds = 24
+		plan.RebufferBufferSeconds = 36
+		plan.DesiredBufferSeconds = 90
+		plan.LowBufferSeconds = 24
+		plan.ReadRate = 2.50
+		plan.InitialBurstSeconds = 60
 		plan.MinimumEncoderSpeed = 1.15
 		plan.Reason = "Esmane kvaliteediprofiil ei püsinud reaalajas; KoduMedia kasutab stabiilset 1080p H.264 profiili."
 	case 2:
 		plan.QualityProfile = "data-saver"
 		plan.VideoPreset = "superfast"
 		plan.VideoCRF = 23
-		plan.StartupBufferSeconds = 12
-		plan.RebufferBufferSeconds = 18
-		plan.DesiredBufferSeconds = 35
-		plan.LowBufferSeconds = 10
-		plan.ReadRate = 1.50
-		plan.InitialBurstSeconds = 24
+		plan.StartupBufferSeconds = 20
+		plan.RebufferBufferSeconds = 30
+		plan.DesiredBufferSeconds = 75
+		plan.LowBufferSeconds = 20
+		plan.ReadRate = 2.75
+		plan.InitialBurstSeconds = 50
 		plan.MinimumEncoderSpeed = 1.05
 		plan.Reason = "1080p profiil ei püsinud reaalajas; KoduMedia kasutab töökindlat 720p H.264 profiili."
 	default:
 		plan.QualityProfile = "data-saver"
 		plan.VideoPreset = "ultrafast"
 		plan.VideoCRF = 26
-		plan.StartupBufferSeconds = 10
-		plan.RebufferBufferSeconds = 15
-		plan.DesiredBufferSeconds = 30
-		plan.LowBufferSeconds = 8
-		plan.ReadRate = 1.70
-		plan.InitialBurstSeconds = 20
+		plan.StartupBufferSeconds = 16
+		plan.RebufferBufferSeconds = 24
+		plan.DesiredBufferSeconds = 60
+		plan.LowBufferSeconds = 16
+		plan.ReadRate = 3.00
+		plan.InitialBurstSeconds = 40
 		plan.MinimumEncoderSpeed = 1.02
 		plan.Reason = "720p profiil ei püsinud reaalajas; KoduMedia kasutab viimase töökindla fallback'ina 480p H.264 profiili."
 	}
 	if plan.EncoderFallbackReason != "" {
 		plan.Reason = plan.EncoderFallbackReason + " " + plan.Reason
 	}
+	plan.MinimumReadyBufferSeconds = plan.StartupBufferSeconds
 	plan.MaxVideoBitrate, plan.RateControlBuffer = fallbackRateControl(plan.TargetWidth, plan.TargetHeight, source.Bitrate)
 	return plan, true
 }

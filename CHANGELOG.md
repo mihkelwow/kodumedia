@@ -1,3 +1,29 @@
+## 0.8.58 - 2026-10-27
+
+### Püsiv transcodingu varu ja suurem esituspuhver
+
+- Eemaldatud 1080p transcode'i liiga napp 1,30× sisendkiiruse piir; tavaline
+  kvaliteedivoog saab nüüd kasutada kuni 2,50× tootmistempot ja pikemat algset
+  burst'i, et puhver ei kahaneks pika vaatamise jooksul vältimatult nulli.
+- Tavalise 1080p transcode'i serveri- ja brauseripoolne käivituspuhver on 24 s,
+  taastamispuhver 36 s ning soovitud puhver 90 s. 4K/HDR vastavad eesmärgid on
+  30 s, 45 s ja 120 s.
+- Seek'i järel loodud uus HLS-session tagastatakse playerile alles pärast kogu
+  käivituspuhvri valmimist; varasem kaheksa sekundi piir ei saa enam kohe pärast
+  kerimist puhverdamist põhjustada.
+- Encoder'i kiirust mõõdetakse nüüd viimati toodetud meediaaja ja päris aja
+  suhtena. Sessiooni alguse kiire burst ei varja enam hilisemat tegelikku
+  aeglustumist eksitavas kogu protsessi keskmises.
+- Automaatne hardware-valik eelistab töötavat NVIDIA NVENC-i ka SDR/1080p
+  materjalil, seejärel Intel QSV-d, AMD AMF-i ja lõpuks CPU encoder'it.
+- Kvaliteedi automaatne alandamine vajab nüüd korraga püsivalt väikest puhvrit
+  ja serveri kinnitatud encoder'i kiiruseprobleemi. Tavalised brauseri
+  `waiting`/`stalled` sündmused ei põhjusta enam kaskaadi Original → 1080p →
+  Data Saver → 480p.
+- Ingliskeelne README dokumenteerib praktilised miinimum- ja soovituslikud
+  riistvaranõuded, Direct Play / remux / transcode otsustusloogika, hardware
+  encoder'ite järjekorra ning audio passthrough'i tingimused.
+
 ## 0.8.57 - 2026-10-26
 
 ### Playeri käivitumise hotfix

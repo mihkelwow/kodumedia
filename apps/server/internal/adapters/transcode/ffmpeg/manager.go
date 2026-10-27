@@ -26,10 +26,14 @@ import (
 const (
 	qualityPipelineRevision = "quality-engine-v5"
 	cacheRangeAlignmentMS   = int64(2_000)
-	playlistStartupTimeout  = 35 * time.Second
-	generatedFileWait       = 8 * time.Second
-	processStopTimeout      = 4 * time.Second
-	capabilityProbeTimeout  = 8 * time.Second
+	// Adaptive sessions intentionally build a 20–30 second producer cushion
+	// before being exposed. Leave enough time for a just-over-realtime software
+	// encoder to create that reserve instead of mistaking healthy warm-up for a
+	// failed FFmpeg process.
+	playlistStartupTimeout = 90 * time.Second
+	generatedFileWait      = 8 * time.Second
+	processStopTimeout     = 4 * time.Second
+	capabilityProbeTimeout = 8 * time.Second
 )
 
 type runtimeSession struct {

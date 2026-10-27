@@ -286,19 +286,24 @@ func applyPlaybackBufferPolicy(plan *domain.PlaybackPlan, technical domain.Techn
 	}
 
 	if plan.VideoAction != domain.TrackActionTranscode {
-		plan.StartupBufferSeconds = 8
-		plan.RebufferBufferSeconds = 16
-		plan.DesiredBufferSeconds = 30
-		plan.LowBufferSeconds = 8
-		plan.ReadRate = 2.0
-		plan.InitialBurstSeconds = 30
+		plan.StartupBufferSeconds = 20
+		plan.RebufferBufferSeconds = 30
+		plan.DesiredBufferSeconds = 60
+		plan.LowBufferSeconds = 16
+		plan.ReadRate = 3.0
+		plan.InitialBurstSeconds = 45
 		if plan.AudioAction == domain.TrackActionTranscode {
-			plan.ReadRate = 1.6
+			plan.ReadRate = 2.5
 		}
 		if short {
 			plan.StartupBufferSeconds, plan.RebufferBufferSeconds, plan.DesiredBufferSeconds = 3, 6, 12
+			plan.LowBufferSeconds = 3
 			plan.InitialBurstSeconds = 12
 		}
+		// Do not expose a short event playlist to the browser. The API returns
+		// only after the producer has built the same cushion that the player
+		// requires, including after a remote seek starts a fresh session.
+		plan.MinimumReadyBufferSeconds = plan.StartupBufferSeconds
 		return
 	}
 
@@ -312,45 +317,45 @@ func applyPlaybackBufferPolicy(plan *domain.PlaybackPlan, technical domain.Techn
 	highComplexity := width > 1920 || height > 1080 || plan.PreserveHDR || plan.ToneMap || technical.HDRFormat != ""
 	switch clampRecoveryLevel(plan.RecoveryLevel) {
 	case 1:
-		plan.StartupBufferSeconds = 12
-		plan.RebufferBufferSeconds = 18
-		plan.DesiredBufferSeconds = 35
-		plan.LowBufferSeconds = 10
-		plan.ReadRate = 1.40
-		plan.InitialBurstSeconds = 24
+		plan.StartupBufferSeconds = 24
+		plan.RebufferBufferSeconds = 36
+		plan.DesiredBufferSeconds = 90
+		plan.LowBufferSeconds = 24
+		plan.ReadRate = 2.50
+		plan.InitialBurstSeconds = 60
 		plan.MinimumEncoderSpeed = 1.15
 	case 2:
-		plan.StartupBufferSeconds = 10
-		plan.RebufferBufferSeconds = 15
-		plan.DesiredBufferSeconds = 30
-		plan.LowBufferSeconds = 8
-		plan.ReadRate = 1.50
-		plan.InitialBurstSeconds = 20
+		plan.StartupBufferSeconds = 20
+		plan.RebufferBufferSeconds = 30
+		plan.DesiredBufferSeconds = 75
+		plan.LowBufferSeconds = 20
+		plan.ReadRate = 2.75
+		plan.InitialBurstSeconds = 50
 		plan.MinimumEncoderSpeed = 1.10
 	case 3:
-		plan.StartupBufferSeconds = 8
-		plan.RebufferBufferSeconds = 12
-		plan.DesiredBufferSeconds = 24
-		plan.LowBufferSeconds = 6
-		plan.ReadRate = 1.70
-		plan.InitialBurstSeconds = 18
+		plan.StartupBufferSeconds = 16
+		plan.RebufferBufferSeconds = 24
+		plan.DesiredBufferSeconds = 60
+		plan.LowBufferSeconds = 16
+		plan.ReadRate = 3.00
+		plan.InitialBurstSeconds = 40
 		plan.MinimumEncoderSpeed = 1.02
 	default:
 		if highComplexity {
-			plan.StartupBufferSeconds = 20
-			plan.RebufferBufferSeconds = 30
-			plan.DesiredBufferSeconds = 55
-			plan.LowBufferSeconds = 18
-			plan.ReadRate = 1.35
-			plan.InitialBurstSeconds = 30
+			plan.StartupBufferSeconds = 30
+			plan.RebufferBufferSeconds = 45
+			plan.DesiredBufferSeconds = 120
+			plan.LowBufferSeconds = 30
+			plan.ReadRate = 2.25
+			plan.InitialBurstSeconds = 75
 			plan.MinimumEncoderSpeed = 1.25
 		} else {
-			plan.StartupBufferSeconds = 14
-			plan.RebufferBufferSeconds = 22
-			plan.DesiredBufferSeconds = 40
-			plan.LowBufferSeconds = 12
-			plan.ReadRate = 1.30
-			plan.InitialBurstSeconds = 24
+			plan.StartupBufferSeconds = 24
+			plan.RebufferBufferSeconds = 36
+			plan.DesiredBufferSeconds = 90
+			plan.LowBufferSeconds = 24
+			plan.ReadRate = 2.50
+			plan.InitialBurstSeconds = 60
 			plan.MinimumEncoderSpeed = 1.20
 		}
 	}
@@ -358,8 +363,10 @@ func applyPlaybackBufferPolicy(plan *domain.PlaybackPlan, technical domain.Techn
 		plan.StartupBufferSeconds = minBufferInt(plan.StartupBufferSeconds, 4)
 		plan.RebufferBufferSeconds = minBufferInt(plan.RebufferBufferSeconds, 8)
 		plan.DesiredBufferSeconds = minBufferInt(plan.DesiredBufferSeconds, 15)
+		plan.LowBufferSeconds = minBufferInt(plan.LowBufferSeconds, 4)
 		plan.InitialBurstSeconds = minBufferInt(plan.InitialBurstSeconds, 12)
 	}
+	plan.MinimumReadyBufferSeconds = plan.StartupBufferSeconds
 	plan.MaxVideoBitrate, plan.RateControlBuffer = qualityRateControl(plan.VideoCodec, width, height, plan.QualityProfile, technical.Bitrate)
 }
 

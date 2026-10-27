@@ -5,9 +5,21 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/mihkelwow/kodumedia/internal/domain"
 )
+
+func TestRecentProductionSpeedIgnoresMisleadingLifetimeAverage(t *testing.T) {
+	start := time.Unix(1_700_000_000, 0)
+	speed, known := recentProductionSpeed(60_000_000, start, 65_000_000, start.Add(2*time.Second))
+	if !known || speed != 2.5 {
+		t.Fatalf("recent speed = %.2fx, known=%v; want 2.50x", speed, known)
+	}
+	if _, known := recentProductionSpeed(0, time.Time{}, 65_000_000, start); known {
+		t.Fatal("first sample must not invent a recent production speed")
+	}
+}
 
 func TestUnsustainableSpeedUsesPlanSafetyMargin(t *testing.T) {
 	plan := domain.PlaybackPlan{MinimumEncoderSpeed: 1.25}

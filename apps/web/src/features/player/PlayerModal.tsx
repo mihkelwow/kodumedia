@@ -131,11 +131,10 @@ export function startupBufferTargetSeconds(
   const planned = (plan?.startupBufferSeconds ?? 0) > 0
     ? plan?.startupBufferSeconds ?? 8
     : short ? 3 : 8;
-  // The larger plan value also describes how much headroom the encoder should
-  // build and how long a DLNA hand-off may wait on the server. Requiring the
-  // browser's paused media element to reach 14–20 seconds can deadlock startup:
-  // Chromium may stop appending at roughly ten seconds until playback begins.
-  return Math.min(planned, short ? 3 : 8);
+  // The server withholds adaptive sessions until this complete cushion is
+  // already encoded. Keep the browser on the same target instead of throwing
+  // most of that reserve away at startup or after a seek.
+  return Math.max(0, planned);
 }
 
 export function shouldStartBufferedPlayback(
@@ -144,10 +143,35 @@ export function shouldStartBufferedPlayback(
   waitingMs: number,
   readyState: number,
 ): boolean {
-  if (bufferedAhead >= targetSeconds) return true;
-  // Fail open once the media element has playable data. This keeps a slow or
-  // conservative MSE implementation from waiting forever just below target.
-  return waitingMs >= 6_000 && (bufferedAhead >= 2 || readyState >= 3);
+  const target = Math.max(0, targetSeconds);
+  if (target <= 0) return readyState >= 3 && bufferedAhead > 0;
+
+  // TimeRanges are sampled between segment appends and can remain a fraction
+  // below the nominal target. Treat that small measurement gap as ready.
+  const nearTarget = Math.max(0, target - Math.min(0.5, target * 0.1));
+  if (bufferedAhead >= nearTarget) return true;
+
+  // Never start or resume an HLS stream with a single tiny fragment. Keep a
+  // bounded escape hatch for conservative MSE implementations, but require a
+  // real cushion first.
+  const safeFloor = Math.min(target, Math.max(4, target * 0.75));
+  return waitingMs >= 15_000 && readyState >= 3 && bufferedAhead >= safeFloor;
+}
+
+export function shouldUseEncoderFallback(
+  plan: PlaybackPlan | undefined,
+  bufferedAhead: number,
+  lowBufferSeconds: number,
+  lowBufferDurationMs: number,
+  fallbackRecommended: boolean,
+): boolean {
+  return Boolean(
+    plan?.mode === "transcode" &&
+      (plan.recoveryLevel ?? 0) < 3 &&
+      bufferedAhead < lowBufferSeconds &&
+      lowBufferDurationMs >= 12_000 &&
+      fallbackRecommended,
+  );
 }
 
 export function bufferPolicyForPlan(
@@ -159,17 +183,11 @@ export function bufferPolicyForPlan(
   return {
     startupSeconds,
     rebufferSeconds:
-      Math.min(
-        plan?.rebufferBufferSeconds ?? (short ? 6 : plan?.mode === "direct" ? 8 : 20),
-        short ? 6 : 10,
-      ),
+      plan?.rebufferBufferSeconds ?? (short ? 6 : plan?.mode === "direct" ? 8 : 30),
     desiredSeconds:
-      plan?.desiredBufferSeconds ?? (short ? 12 : plan?.mode === "direct" ? 20 : 40),
+      plan?.desiredBufferSeconds ?? (short ? 12 : plan?.mode === "direct" ? 20 : 90),
     lowSeconds:
-      Math.min(
-        plan?.lowBufferSeconds ?? (short ? 3 : plan?.mode === "direct" ? 4 : 12),
-        short ? 3 : 6,
-      ),
+      plan?.lowBufferSeconds ?? (short ? 3 : plan?.mode === "direct" ? 4 : 24),
   };
 }
 
@@ -178,7 +196,7 @@ export function hlsBufferSizeBytes(bitrate: number | undefined, desiredSeconds: 
   // This is a ceiling, not an allocation. High-bitrate 4K streams need enough
   // byte headroom to reach the 30-second rebuffer target; 256 MiB could cap a
   // 90 Mb/s stream below that target and keep the player in a rebuffer loop.
-  const maximum = 512 * 1024 * 1024;
+  const maximum = 1024 * 1024 * 1024;
   if (!bitrate || bitrate <= 0) return minimum;
   const estimated = Math.ceil((bitrate * Math.max(20, desiredSeconds) * 1.25) / 8);
   return Math.max(minimum, Math.min(maximum, estimated));
@@ -392,7 +410,6 @@ export function PlayerModal({
   const bufferPhaseRef = useRef<BufferPhase>("preparing");
   const resumeAfterBufferRef = useRef(false);
   const stallStartedAtRef = useRef<number | null>(null);
-  const recentStallsRef = useRef<number[]>([]);
   const lowBufferSinceRef = useRef<number | null>(null);
   const stabilityFallbackInFlightRef = useRef(false);
   const requestedHDRModeRef = useRef<HDRMode>(
@@ -492,7 +509,6 @@ export function PlayerModal({
   }, [session]);
 
   useEffect(() => {
-    recentStallsRef.current = [];
     lowBufferSinceRef.current = null;
     stallStartedAtRef.current = null;
     setStallCount(0);
@@ -987,13 +1003,15 @@ export function PlayerModal({
     if (lowBufferSinceRef.current === null)
       lowBufferSinceRef.current = Date.now();
     const lowFor = Date.now() - lowBufferSinceRef.current;
-    if (
-      lowFor >= 6000 &&
-      runtimeStats?.fallbackRecommended &&
-      (session.plan.recoveryLevel ?? 0) < 3
-    ) {
+    if (shouldUseEncoderFallback(
+      session.plan,
+      bufferedAhead,
+      bufferPolicy.lowSeconds,
+      lowFor,
+      runtimeStats?.fallbackRecommended === true,
+    )) {
       requestStabilityFallback(
-        trExternal(runtimeStats.fallbackReason) || tr('Encoder ei hoidnud piisavat reaalajavaru.'),
+        trExternal(runtimeStats?.fallbackReason ?? '') || tr('Encoder ei hoidnud piisavat reaalajavaru.'),
       );
     }
   }, [
@@ -1175,22 +1193,11 @@ export function PlayerModal({
       )
         return;
       const now = Date.now();
-      recentStallsRef.current = recentStallsRef.current
-        .filter((value) => now - value < 90_000)
-        .concat(now);
       setStallCount((value) => value + 1);
       stallStartedAtRef.current = now;
       resumeAfterBufferRef.current = true;
       updateBufferPhase("rebuffering");
       video.pause();
-      if (
-        recentStallsRef.current.length >= 2 &&
-        (session.plan.recoveryLevel ?? 0) < 3
-      ) {
-        requestStabilityFallback(
-          tr('Esituspuhver tühjenes lühikese aja jooksul korduvalt.'),
-        );
-      }
     };
 
     const finishRebuffer = () => {
@@ -1386,7 +1393,6 @@ export function PlayerModal({
     item.technical.bitrate,
     item.technical.durationMs,
     options.durationMs,
-    requestStabilityFallback,
     session,
     updateBufferPhase,
   ]);

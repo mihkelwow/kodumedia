@@ -374,10 +374,10 @@ func TestPlaybackPlannerAppliesRemuxBufferPolicy(t *testing.T) {
 	if plan.Mode != domain.PlaybackModeRemux {
 		t.Fatalf("mode = %s; want remux", plan.Mode)
 	}
-	if plan.StartupBufferSeconds != 8 || plan.RebufferBufferSeconds != 16 || plan.DesiredBufferSeconds != 30 || plan.LowBufferSeconds != 8 {
+	if plan.StartupBufferSeconds != 20 || plan.RebufferBufferSeconds != 30 || plan.DesiredBufferSeconds != 60 || plan.LowBufferSeconds != 16 || plan.MinimumReadyBufferSeconds != 20 {
 		t.Fatalf("unexpected remux buffer policy: %+v", plan)
 	}
-	if plan.ReadRate != 2.0 || plan.InitialBurstSeconds != 30 {
+	if plan.ReadRate != 3.0 || plan.InitialBurstSeconds != 45 {
 		t.Fatalf("unexpected remux producer policy: %+v", plan)
 	}
 }
@@ -399,7 +399,7 @@ func TestPlaybackPlannerUsesBufferedMPEGTSForDLNARemux(t *testing.T) {
 	if plan.Mode != domain.PlaybackModeRemux || plan.Container != "mpegts-hls" {
 		t.Fatalf("expected MPEG-TS DLNA remux, got %+v", plan)
 	}
-	if plan.VideoAction != domain.TrackActionCopy || plan.MinimumReadyBufferSeconds != 12 {
+	if plan.VideoAction != domain.TrackActionCopy || plan.MinimumReadyBufferSeconds != 20 {
 		t.Fatalf("unexpected DLNA remux policy: %+v", plan)
 	}
 	if plan.CachePolicy != "off" {
@@ -446,10 +446,10 @@ func TestPlaybackPlannerApplies1080pTranscodeHeadroomAndVBV(t *testing.T) {
 	if plan.VideoAction != domain.TrackActionTranscode {
 		t.Fatalf("expected video transcode, got %+v", plan)
 	}
-	if plan.StartupBufferSeconds != 14 || plan.RebufferBufferSeconds != 22 || plan.DesiredBufferSeconds != 40 || plan.LowBufferSeconds != 12 {
+	if plan.StartupBufferSeconds != 24 || plan.RebufferBufferSeconds != 36 || plan.DesiredBufferSeconds != 90 || plan.LowBufferSeconds != 24 || plan.MinimumReadyBufferSeconds != 24 {
 		t.Fatalf("unexpected 1080p buffer policy: %+v", plan)
 	}
-	if plan.MinimumEncoderSpeed != 1.20 || plan.ReadRate != 1.30 || plan.InitialBurstSeconds != 24 {
+	if plan.MinimumEncoderSpeed != 1.20 || plan.ReadRate != 2.50 || plan.InitialBurstSeconds != 60 {
 		t.Fatalf("unexpected 1080p encoder headroom: %+v", plan)
 	}
 	if plan.MaxVideoBitrate <= 0 || plan.RateControlBuffer != plan.MaxVideoBitrate*2 {
@@ -469,10 +469,10 @@ func TestPlaybackPlannerApplies4KTranscodeSafetyPolicy(t *testing.T) {
 	}
 	caps := domain.ClientCapabilities{VideoCodecs: []string{"h264"}, AudioCodecs: []string{"aac"}, MaximumWidth: 3840, MaximumHeight: 2160}
 	plan := planner.Plan(item, caps, domain.PlaybackPreferences{}, nil)
-	if plan.StartupBufferSeconds != 20 || plan.RebufferBufferSeconds != 30 || plan.DesiredBufferSeconds != 55 || plan.LowBufferSeconds != 18 {
+	if plan.StartupBufferSeconds != 30 || plan.RebufferBufferSeconds != 45 || plan.DesiredBufferSeconds != 120 || plan.LowBufferSeconds != 30 || plan.MinimumReadyBufferSeconds != 30 {
 		t.Fatalf("unexpected 4K buffer policy: %+v", plan)
 	}
-	if plan.MinimumEncoderSpeed != 1.25 || plan.ReadRate != 1.35 || plan.InitialBurstSeconds != 30 {
+	if plan.MinimumEncoderSpeed != 1.25 || plan.ReadRate != 2.25 || plan.InitialBurstSeconds != 75 {
 		t.Fatalf("unexpected 4K encoder headroom: %+v", plan)
 	}
 }

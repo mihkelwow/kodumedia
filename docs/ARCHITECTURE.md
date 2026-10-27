@@ -34,7 +34,7 @@ Sõltuvused liiguvad sissepoole. Adapter võib importida domeeni ja porte; domee
 
 `apps/server/internal/app/app.go` on ainus koht, kus konkreetsed adapterid tervikuks ühendatakse.
 
-0.8.57 koostab seal:
+0.8.58 koostab seal:
 
 - `jsoncatalog.Store` kataloogi jaoks;
 - `jsonsettings.Store` runtime-seadete jaoks;

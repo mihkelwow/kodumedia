@@ -12,7 +12,7 @@ KoduMedia is a self-hosted media server for Windows. It combines a Go backend
 with a responsive React web interface for browsing and playing movies, TV
 series and music on a trusted home network.
 
-The current release is **0.8.57**.
+The current release is **0.8.58**.
 
 [![KoduMedia home screen showing the featured title and Continue Watching](docs/screenshots/home-overview.png)](docs/screenshots/home-overview.png)
 
@@ -72,6 +72,23 @@ The current release is **0.8.57**.
 - A modern browser on the same trusted local network.
 - Optional free API credentials for TMDb, AcoustID and OpenSubtitles.com.
 
+The table below is a practical baseline for one active video stream. Direct
+Play is lightweight; live transcoding, HDR tone mapping, subtitle burn-in and
+multiple simultaneous streams require more processing capacity.
+
+| Component | Practical minimum | Recommended |
+| --- | --- | --- |
+| CPU | 64-bit dual-core / four-thread processor for library use, music and Direct Play | Modern six-core or better; eight cores or better for regular 4K/HDR transcoding |
+| Memory | 4 GB RAM for basic Direct Play use | 16 GB RAM; 32 GB for frequent 4K/HDR work or several clients |
+| GPU | Not required for Direct Play or remuxing | A working H.264/HEVC hardware encoder exposed through NVIDIA NVENC, Intel Quick Sync or AMD AMF |
+| Storage | 2 GB free for the portable application and metadata, excluding media and transcode cache | SSD storage and at least 60 GB free when using the default 50 GB optimized-media cache |
+| Network | Stable 100 Mbit/s local network for normal 1080p use | Wired gigabit Ethernet for high-bitrate 4K, large source files and television casting |
+
+These figures are not a guarantee for every file. Codec, bit depth, frame rate,
+subtitle processing, television firmware, browser support and network peaks all
+affect the actual requirement. Each additional simultaneous transcode needs its
+own encoder and network headroom.
+
 KoduMedia never ships with a user's API credentials. Credentials entered in
 Settings are stored under the local `data` directory, which is excluded from
 Git.
@@ -84,6 +101,69 @@ Git.
 - PowerShell 5.1 or newer.
 - Windows 10/11 x64 for the official executable.
 - NSIS 3.08 or newer only when building the optional installer.
+
+## Playback and encoding: good to know
+
+KoduMedia chooses the least destructive playback path supported by both the
+source file and the receiving client:
+
+1. **Direct Play** sends the original file without changing its container,
+   video or audio. For video this is available for compatible MP4 and WebM
+   files; compatible MP4, WebM, MP3, FLAC, Ogg and WAV audio can also play
+   directly. The client must support the container, codecs, channel count,
+   resolution, bitrate and HDR format, and the selected subtitles must not
+   require burn-in.
+2. **Remux** keeps compatible video and audio bitstreams unchanged but places
+   them into an HLS container that the browser or television can consume. A
+   compatible MKV video will commonly use this path. Selecting a different
+   embedded audio track may also require remuxing even when that track itself
+   can be copied unchanged.
+3. **Transcode** converts only the incompatible track where possible. Video is
+   encoded when its codec or dimensions exceed client limits, HDR must be tone
+   mapped to SDR, image subtitles must be burned into the picture, or a
+   recovery profile is required. Audio can still be copied while video is
+   transcoded if the client supports it.
+
+### Audio passthrough
+
+Yes. KoduMedia uses FFmpeg stream copy for the selected audio track when the
+client reports support for its codec and channel count. Audio passthrough can
+therefore remain active during Direct Play, remuxing and a video-only
+transcode. This preserves the original codec, channel layout and bitrate.
+
+If the receiving device does not support the selected audio format or channel
+count, KoduMedia converts it to AAC, 192 kbit/s, stereo, 48 kHz. A deliberately
+forced universal transcode also uses this compatibility path. Actual
+passthrough still depends on the browser, television, receiver and connection
+advertising the capability correctly.
+
+### Hardware encoder selection
+
+In automatic mode KoduMedia validates a real encoder at runtime and tries the
+available families in this order for the selected output codec:
+
+1. NVIDIA NVENC;
+2. Intel Quick Sync Video (QSV);
+3. AMD Advanced Media Framework (AMF);
+4. software encoding on the CPU.
+
+This preference applies to every supported NVIDIA GPU, not specifically to an
+RTX 3090, but merely having an NVIDIA card is not sufficient: the card, driver
+and bundled FFmpeg build must expose a working encoder for the requested codec.
+If a hardware encoder fails its probe or cannot start for the current file,
+KoduMedia tries the next compatible path.
+
+The current NVIDIA path can pair NVENC with CUDA hardware decoding for
+supported H.264, HEVC and AV1 sources. QSV and AMF encoding are supported, but
+their input decoding may still run on the CPU in 0.8.58. This can make the AMD
+or Intel route more CPU-intensive without intentionally lowering its selected
+quality. Subtitle burn-in can also require a software-decoding/filter path.
+
+The **Original** quality profile means “preserve the source whenever the client
+can play it”; it is not a promise of bit-for-bit output for an incompatible
+file. Open the player's diagnostics panel to see the actual video and audio
+actions, encoder, decoder, output codec, buffer and bitrate selected for the
+current session.
 
 ## Install and run
 

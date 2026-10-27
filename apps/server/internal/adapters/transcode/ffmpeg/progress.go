@@ -85,6 +85,21 @@ func isUnsustainableSpeed(plan domain.PlaybackPlan, speed float64, known bool) b
 	return known && speed > 0 && speed < minimum
 }
 
+// recentProductionSpeed measures newly produced media time against wall time.
+// FFmpeg's reported speed is cumulative from process start, so a very fast
+// initial burst can keep that number high long after current production has
+// slowed down. Buffer protection needs the recent rate instead.
+func recentProductionSpeed(previousOutputUS int64, previousAt time.Time, outputUS int64, sampledAt time.Time) (float64, bool) {
+	if previousAt.IsZero() || !sampledAt.After(previousAt) || outputUS < previousOutputUS {
+		return 0, false
+	}
+	elapsed := sampledAt.Sub(previousAt).Seconds()
+	if elapsed <= 0 {
+		return 0, false
+	}
+	return (float64(outputUS-previousOutputUS) / 1_000_000) / elapsed, true
+}
+
 func (r *runtimeSession) updateStats(update func(*domain.PlaybackRuntimeStats)) {
 	r.statsMu.Lock()
 	update(&r.stats)
@@ -110,8 +125,11 @@ func (m *Manager) monitorRuntime(runtime *runtimeSession) {
 	nextMeasuredSegment := -1
 	generatedBytes := int64(0)
 	initMeasured := false
+	previousOutputUS := int64(0)
+	previousSampleAt := time.Time{}
 
 	update := func(alive bool) {
+		sampledAt := time.Now()
 		progress := readEncoderProgress(runtime.dir)
 		playlist := inspectPlaylistCache(runtime.dir)
 		generatedBytes, nextMeasuredSegment, initMeasured = measureGeneratedBytes(
@@ -121,8 +139,11 @@ func (m *Manager) monitorRuntime(runtime *runtimeSession) {
 			nextMeasuredSegment,
 			initMeasured,
 		)
-		if progress.Speed > 0 {
-			samples = append(samples, progress.Speed)
+		recentSpeed, recentKnown := recentProductionSpeed(previousOutputUS, previousSampleAt, progress.OutTimeUS, sampledAt)
+		previousOutputUS = progress.OutTimeUS
+		previousSampleAt = sampledAt
+		if recentKnown {
+			samples = append(samples, recentSpeed)
 			if len(samples) > sampleWindow {
 				samples = samples[len(samples)-sampleWindow:]
 			}
@@ -135,10 +156,14 @@ func (m *Manager) monitorRuntime(runtime *runtimeSession) {
 			average /= float64(len(samples))
 		}
 
+		displayedSpeed := recentSpeed
+		if !recentKnown {
+			displayedSpeed = progress.Speed
+		}
 		minimum := runtime.request.Plan.MinimumEncoderSpeed
 		fallback := false
 		reason := ""
-		if alive && minimum > 0 && progress.OutTimeUS >= 8_000_000 && average > 0 && average < minimum {
+		if alive && minimum > 0 && progress.OutTimeUS >= 8_000_000 && len(samples) > 0 && average < minimum {
 			if belowSince.IsZero() {
 				belowSince = time.Now()
 			}
@@ -161,7 +186,7 @@ func (m *Manager) monitorRuntime(runtime *runtimeSession) {
 				}
 			}
 			stats.ProducerAlive = alive
-			stats.EncoderSpeed = progress.Speed
+			stats.EncoderSpeed = displayedSpeed
 			stats.AverageEncoderSpeed = average
 			stats.OutputPositionMS = progress.OutTimeUS / 1000
 			stats.GeneratedDurationMS = playlist.DurationMS

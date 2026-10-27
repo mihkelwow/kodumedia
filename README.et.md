@@ -8,7 +8,7 @@ KoduMedia on Windowsile mõeldud isemajutatud meediaserver. Go server ja
 Reacti veebiliides võimaldavad koduvõrgus filme, seriaale ning muusikat sirvida
 ja esitada.
 
-Praegune versioon on **0.8.57**.
+Praegune versioon on **0.8.58**.
 
 [![KoduMedia avaleht esiletõstetud teose ja poolelijäänud vaatamistega](docs/screenshots/home-overview.png)](docs/screenshots/home-overview.png)
 

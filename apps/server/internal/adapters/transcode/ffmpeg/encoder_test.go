@@ -103,6 +103,19 @@ func TestResolveEncoderPrefersNVENCForHDRAndUsesCUDAHardwareDecode(t *testing.T)
 	}
 }
 
+func TestResolveEncoderPrefersNVENCForOrdinarySDRWhenAvailable(t *testing.T) {
+	executable := testSuccessfulExecutable(t)
+	manager := &Manager{binary: func() string { return executable }, encoderCache: map[string]encoderProbeCacheEntry{}}
+	plan := domain.PlaybackPlan{
+		VideoAction: domain.TrackActionTranscode, VideoCodec: "h264", VideoCodecCandidates: []string{"h264"},
+		PreferredVideoCodec: "h264", HardwarePreference: "auto", VideoEncoder: "auto", PixelFormat: "yuv420p",
+	}
+	resolved := manager.resolveEncoder(context.Background(), plan, domain.TechnicalMetadata{VideoCodec: "h264", Width: 1920, Height: 1080}, RuntimeCapabilities{H264QSV: true, H264NVENC: true, CUDA: true, LibX264: true})
+	if resolved.VideoEncoder != "nvenc" || resolved.VideoDecoder != "cuda" {
+		t.Fatalf("expected NVENC/CUDA for SDR when both hardware families are available, got %+v", resolved)
+	}
+}
+
 func TestRetryAfterHardwareFailureFirstDisablesDecoderThenExcludesEncoder(t *testing.T) {
 	manager := &Manager{encoderCache: map[string]encoderProbeCacheEntry{}}
 	plan := domain.PlaybackPlan{
